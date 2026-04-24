@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Top Leads</title>
+</head>
+<body>
+
+<h1>Top Leads</h1>
+<button onclick="loadLeads()">Load Leads</button>
+
+<div id="leads"></div>
+
+<script>
+const API = "https://lead-gen-system-s8n2.onrender.com";
+
+async function loadLeads() {
+    const res = await fetch(`${API}/top-leads`);
+    const raw = await res.json();
+
+    const data = Array.isArray(raw) ? raw : (raw.results || raw.data || []);
+
+    const container = document.getElementById("leads");
+    container.innerHTML = "";
+
+    data
+        .filter(x => (x.score || 0) >= 60)
+        .sort((a,b) => b.score - a.score)
+        .forEach(item => {
+            const div = document.createElement("div");
+            div.innerHTML = `
+                <p>
+                <strong>${item.business}</strong> → ${item.plumber}<br>
+                Score: ${item.score}
+                </p>
+            `;
+            container.appendChild(div);
+        });
+}
+</script>
+
+</body>
+</html>

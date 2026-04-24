@@ -1,0 +1,108 @@
+[2026-04-20 19:33:17] === DAILY PIPELINE START ===
+[2026-04-20 19:33:17] RUNNING: Collect Plumbers
+[2026-04-20 19:33:19] FAILED: Collect Plumbers HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries exceeded with url: /collect/plumbers (Caused by NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))
+[2026-04-20 19:33:19] RUNNING: Enrich Emails
+[2026-04-20 19:33:21] FAILED: Enrich Emails HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries exceeded with url: /enrich/plumber-emails (Caused by NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))
+[2026-04-20 19:33:21] RUNNING: Collect Demand
+[2026-04-20 19:33:23] FAILED: Collect Demand HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries exceeded with url: /collect/demand (Caused by NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))
+[2026-04-20 19:33:23] RUNNING: Run Matching
+[2026-04-20 19:33:25] FAILED: Run Matching HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries exceeded with url: /run-matching (Caused by NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))
+[2026-04-20 19:33:25] RUNNING: Send Outreach
+[2026-04-20 19:33:27] FAILED: Send Outreach HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries exceeded with url: /send-outreach (Caused by NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))
+[2026-04-20 19:33:27] === DAILY PIPELINE END ===
+[2026-04-20 19:38:16] === DAILY PIPELINE START ===
+[2026-04-20 19:38:16] RUNNING: Collect Plumbers
+[2026-04-20 19:38:46] FAILED: Collect Plumbers HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=30)
+[2026-04-20 19:38:46] RUNNING: Enrich Emails
+[2026-04-20 19:39:13] SUCCESS: Enrich Emails 200
+[2026-04-20 19:39:13] RUNNING: Collect Demand
+[2026-04-20 19:39:21] SUCCESS: Collect Demand 200
+[2026-04-20 19:39:21] RUNNING: Run Matching
+[2026-04-20 19:39:51] FAILED: Run Matching HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=30)
+[2026-04-20 19:39:51] RUNNING: Send Outreach
+[2026-04-20 19:39:51] SUCCESS: Send Outreach 200
+[2026-04-20 19:39:51] === DAILY PIPELINE END ===
+[2026-04-20 19:47:16] === DAILY PIPELINE START ===
+[2026-04-20 19:47:16] RUNNING: Collect Plumbers
+[2026-04-20 19:47:46] FAILED: Collect Plumbers HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=30)
+[2026-04-20 19:47:46] RUNNING: Enrich Emails
+[2026-04-20 19:48:16] FAILED: Enrich Emails HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=30)
+[2026-04-20 19:48:16] RUNNING: Collect Demand
+[2026-04-20 19:48:21] SUCCESS: Collect Demand 200
+[2026-04-20 19:48:21] RUNNING: Run Matching
+[2026-04-20 19:48:51] FAILED: Run Matching HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=30)
+[2026-04-20 19:48:51] RUNNING: Send Outreach
+[2026-04-20 19:48:51] SUCCESS: Send Outreach 200
+[2026-04-20 19:48:51] === DAILY PIPELINE END ===
+[2026-04-20 20:00:30] === DAILY PIPELINE START ===
+[2026-04-20 20:00:30] RUNNING: Collect Plumbers
+[2026-04-20 20:01:09] SUCCESS: Collect Plumbers 200
+[2026-04-20 20:01:09] RUNNING: Enrich Emails
+[2026-04-20 20:01:41] SUCCESS: Enrich Emails 200
+[2026-04-20 20:01:41] RUNNING: Collect Demand
+[2026-04-20 20:01:48] SUCCESS: Collect Demand 200
+[2026-04-20 20:01:48] RUNNING: Run Matching
+[2026-04-20 20:03:44] SUCCESS: Run Matching 200
+[2026-04-20 20:03:44] RUNNING: Send Outreach
+[2026-04-20 20:03:44] SUCCESS: Send Outreach 200
+[2026-04-20 20:03:44] === DAILY PIPELINE END ===
+[2026-04-20 21:45:06] === DAILY PIPELINE START ===
+[2026-04-20 21:45:06] RUNNING: Collect Plumbers
+[2026-04-20 21:45:08] FAILED: Collect Plumbers HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries exceeded with url: /collect/plumbers (Caused by NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))
+[2026-04-20 21:45:08] RUNNING: Enrich Emails
+[2026-04-20 21:45:10] FAILED: Enrich Emails HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries exceeded with url: /enrich/plumber-emails (Caused by NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))
+[2026-04-20 21:45:10] RUNNING: Collect Demand
+[2026-04-20 21:45:12] FAILED: Collect Demand HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries exceeded with url: /collect/demand (Caused by NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))
+[2026-04-20 21:45:12] RUNNING: Run Matching
+[2026-04-20 21:45:14] FAILED: Run Matching HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries exceeded with url: /run-matching (Caused by NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))
+[2026-04-20 21:45:14] RUNNING: Send Outreach
+[2026-04-20 21:45:16] FAILED: Send Outreach HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries exceeded with url: /send-outreach (Caused by NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))
+[2026-04-20 21:45:16] === DAILY PIPELINE END ===
+[2026-04-20 21:52:26] === DAILY PIPELINE START ===
+[2026-04-20 21:52:26] RUNNING: Collect Plumbers
+[2026-04-20 21:52:28] FAILED: Collect Plumbers HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries exceeded with url: /collect/plumbers (Caused by NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))
+[2026-04-20 21:52:28] RUNNING: Enrich Emails
+[2026-04-20 21:52:30] FAILED: Enrich Emails HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries exceeded with url: /enrich/plumber-emails (Caused by NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))
+[2026-04-20 21:52:30] RUNNING: Collect Demand
+[2026-04-20 21:52:32] FAILED: Collect Demand HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries exceeded with url: /collect/demand (Caused by NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))
+[2026-04-20 21:52:32] RUNNING: Run Matching
+[2026-04-20 21:52:34] FAILED: Run Matching HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries exceeded with url: /run-matching (Caused by NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))
+[2026-04-20 21:52:34] RUNNING: Send Outreach
+[2026-04-20 21:52:36] FAILED: Send Outreach HTTPConnectionPool(host='127.0.0.1', port=8000): Max retries exceeded with url: /send-outreach (Caused by NewConnectionError("HTTPConnection(host='127.0.0.1', port=8000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))
+[2026-04-20 21:52:36] === DAILY PIPELINE END ===
+[2026-04-20 21:57:39] === DAILY PIPELINE START ===
+[2026-04-20 21:57:39] RUNNING: Collect Plumbers
+[2026-04-20 21:58:17] SUCCESS: Collect Plumbers 200
+[2026-04-20 21:58:17] RUNNING: Enrich Emails
+[2026-04-20 21:58:56] SUCCESS: Enrich Emails 200
+[2026-04-20 21:58:56] RUNNING: Collect Demand
+[2026-04-20 21:59:02] SUCCESS: Collect Demand 200
+[2026-04-20 21:59:02] RUNNING: Run Matching
+[2026-04-20 22:01:02] SUCCESS: Run Matching 200
+[2026-04-20 22:01:02] RUNNING: Send Outreach
+[2026-04-20 22:01:13] SUCCESS: Send Outreach 200
+[2026-04-20 22:01:13] === DAILY PIPELINE END ===
+[2026-04-21 13:34:26] === DAILY PIPELINE START ===
+[2026-04-21 13:34:26] RUNNING: Collect Plumbers
+[2026-04-21 13:35:21] SUCCESS: Collect Plumbers 200
+[2026-04-21 13:35:21] RUNNING: Enrich Emails
+[2026-04-21 13:35:54] SUCCESS: Enrich Emails 200
+[2026-04-21 13:35:54] RUNNING: Collect Demand
+[2026-04-21 13:36:00] SUCCESS: Collect Demand 200
+[2026-04-21 13:36:00] RUNNING: Run Matching
+[2026-04-21 13:37:53] SUCCESS: Run Matching 200
+[2026-04-21 13:37:53] RUNNING: Send Outreach
+[2026-04-21 13:38:04] SUCCESS: Send Outreach 200
+[2026-04-21 13:38:04] === DAILY PIPELINE END ===
+[2026-04-21 13:51:49] === DAILY PIPELINE START ===
+[2026-04-21 13:51:49] RUNNING: Collect Plumbers
+[2026-04-21 13:52:32] SUCCESS: Collect Plumbers 200
+[2026-04-21 13:52:32] RUNNING: Enrich Emails
+[2026-04-21 13:53:05] SUCCESS: Enrich Emails 200
+[2026-04-21 13:53:05] RUNNING: Collect Demand
+[2026-04-21 13:53:11] SUCCESS: Collect Demand 200
+[2026-04-21 13:53:11] RUNNING: Run Matching
+[2026-04-21 13:55:04] SUCCESS: Run Matching 200
+[2026-04-21 13:55:04] RUNNING: Send Outreach
+[2026-04-21 13:55:25] SUCCESS: Send Outreach 200
+[2026-04-21 13:55:25] === DAILY PIPELINE END ===
