@@ -21,7 +21,7 @@ def send_outreach():
     db: Session = get_db()
 
     # FIXED model name
-    leads = db.query(OutreachLog).limit(5).all()
+    leads = db.query(OutreachLog).filter(OutreachLog.sent_at == None).limit(5).all()
 
     sent_count = 0
 
