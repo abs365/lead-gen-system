@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from database import SessionLocal
-from models import Outreach
+from models import OutreachLog  # FIXED
 
 router = APIRouter(prefix="/automation", tags=["automation"])
 
@@ -20,13 +20,13 @@ def get_db():
 def send_outreach():
     db: Session = get_db()
 
-    leads = db.query(Outreach).limit(5).all()
+    # FIXED model name
+    leads = db.query(OutreachLog).limit(5).all()
 
     sent_count = 0
 
     for lead in leads:
         try:
-            # TEMP: simulate sending
             print(f"Sending email to {lead.email}")
 
             lead.sent_at = datetime.utcnow()
