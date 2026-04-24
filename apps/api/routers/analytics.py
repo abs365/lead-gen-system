@@ -1,55 +1,34 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from sqlalchemy.orm import Session
-from sqlalchemy import func
-
-from database import get_db
+from database import SessionLocal
 from models import OutreachLog
 
-router = APIRouter()
+router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 
-# ------------------------------------------------------------------
-# OUTREACH METRICS
-# ------------------------------------------------------------------
+def get_db():
+    db = SessionLocal()
+    try:
+        return db
+    finally:
+        db.close()
 
-@router.get("/analytics/outreach")
-def outreach_analytics(db: Session = Depends(get_db)):
-    total = db.query(func.count(OutreachLog.id)).scalar()
-    opened = db.query(func.count(OutreachLog.id)).filter(OutreachLog.opened == 1).scalar()
-    clicked = db.query(func.count(OutreachLog.id)).filter(OutreachLog.clicked == 1).scalar()
 
-    open_rate = round((opened / total) * 100, 2) if total else 0
-    click_rate = round((clicked / total) * 100, 2) if total else 0
+@router.get("/outreach")
+def get_outreach_analytics():
+    db: Session = get_db()
+
+    total_sent = db.query(OutreachLog).filter(OutreachLog.sent_at != None).count()
+    opened = db.query(OutreachLog).filter(OutreachLog.opened == 1).count()
+    clicked = db.query(OutreachLog).filter(OutreachLog.clicked == 1).count()
+
+    open_rate = (opened / total_sent * 100) if total_sent > 0 else 0
+    click_rate = (clicked / total_sent * 100) if total_sent > 0 else 0
 
     return {
-        "total_sent": total,
+        "total_sent": total_sent,
         "opened": opened,
         "clicked": clicked,
-        "open_rate_percent": open_rate,
-        "click_rate_percent": click_rate
+        "open_rate_percent": round(open_rate, 2),
+        "click_rate_percent": round(click_rate, 2),
     }
-
-
-# ------------------------------------------------------------------
-# RECENT ACTIVITY
-# ------------------------------------------------------------------
-
-@router.get("/analytics/recent-activity")
-def recent_activity(db: Session = Depends(get_db)):
-    logs = (
-        db.query(OutreachLog)
-        .order_by(OutreachLog.sent_at.desc())
-        .limit(20)
-        .all()
-    )
-
-    return [
-        {
-            "email": log.email,
-            "subject": log.subject,
-            "opened": log.opened,
-            "clicked": log.clicked,
-            "sent_at": log.sent_at
-        }
-        for log in logs
-    ]
