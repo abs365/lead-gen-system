@@ -47,13 +47,17 @@ def track_open(lead_id: int):
     db = SessionLocal()
     try:
         lead = db.query(OutreachLog).filter(OutreachLog.id == lead_id).first()
+
         if lead:
-            lead.opened = 1
-            db.commit()
+            if lead.opened != 1:
+                lead.opened = 1
+                db.commit()
+                print(f"OPEN TRACKED: {lead_id}")
+
+    except Exception as e:
+        print("TRACK ERROR:", e)
+
     finally:
         db.close()
 
-    return Response(
-        content=b"",
-        media_type="image/png"
-    )
+    return Response(content=b"", media_type="image/png")
