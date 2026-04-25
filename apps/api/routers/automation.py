@@ -3,7 +3,8 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from database import SessionLocal
-from models import OutreachLog  # FIXED
+from models import OutreachLog
+from services.email import send_email
 
 router = APIRouter(prefix="/automation", tags=["automation"])
 
@@ -20,20 +21,32 @@ def get_db():
 def send_outreach():
     db: Session = get_db()
 
-    # FIXED model name
     leads = db.query(OutreachLog).filter(OutreachLog.sent_at == None).limit(5).all()
 
     sent_count = 0
 
     for lead in leads:
         try:
-            print(f"Sending email to {lead.email}")
+            send_email(
+                to_email=lead.email,
+                subject=lead.subject,
+                body=f"""
+Hello,
+
+We noticed your business and wanted to offer fast, reliable plumbing support in your area.
+
+Let us know if you need help.
+
+Best regards,
+LeadGen Team
+                """
+            )
 
             lead.sent_at = datetime.utcnow()
             sent_count += 1
 
         except Exception as e:
-            print("Error:", e)
+            print("Email error:", e)
 
     db.commit()
 

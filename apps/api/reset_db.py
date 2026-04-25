@@ -1,21 +1,14 @@
-import models
-from database import engine, Base
-from sqlalchemy import text
+from database import SessionLocal
+from models import OutreachLog
 
-with engine.connect() as conn:
-    conn.execute(text("DROP TABLE IF EXISTS prospect_signals CASCADE;"))
-    conn.execute(text("DROP TABLE IF EXISTS matches CASCADE;"))
-    conn.execute(text("DROP TABLE IF EXISTS demand_prospects CASCADE;"))
-    conn.commit()
+db = SessionLocal()
 
-Base.metadata.create_all(bind=engine)
+rows = db.query(OutreachLog).all()
 
-with engine.connect() as conn:
-    result = conn.execute(text("""
-        SELECT column_name
-        FROM information_schema.columns
-        WHERE table_name = 'demand_prospects'
-        ORDER BY ordinal_position;
-    """))
-    cols = [row[0] for row in result]
-    print(cols)
+for r in rows:
+    r.sent_at = None
+
+db.commit()
+db.close()
+
+print("Reset complete: all sent_at cleared")
