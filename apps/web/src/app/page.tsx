@@ -142,7 +142,7 @@ export default function Dashboard() {
             </tr>
           </thead>
           <tbody>
-            {activity.map((a, i) => (
+            {Array.isArray(activity) && activity.map((a, i) => (
               <tr key={i}>
                 <td style={cell}>{a.email}</td>
                 <td style={cell}>{a.subject}</td>

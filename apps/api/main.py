@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 
-from database import Base, engine
+from database import Base, engine, SessionLocal
+from models import OutreachLog
 from routers import collect, data, automation, analytics
 
 app = FastAPI(title="Lead Generation System")
@@ -38,3 +40,20 @@ def health():
 @app.get("/test")
 def test():
     return {"message": "API is alive"}
+
+# TRACK OPEN
+@app.get("/track/open/{lead_id}")
+def track_open(lead_id: int):
+    db = SessionLocal()
+    try:
+        lead = db.query(OutreachLog).filter(OutreachLog.id == lead_id).first()
+        if lead:
+            lead.opened = 1
+            db.commit()
+    finally:
+        db.close()
+
+    return Response(
+        content=b"",
+        media_type="image/png"
+    )

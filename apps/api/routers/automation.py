@@ -27,10 +27,7 @@ def send_outreach():
 
     for lead in leads:
         try:
-            send_email(
-                to_email=lead.email,
-                subject=lead.subject,
-                body=f"""
+            body = f"""
 Hello,
 
 We noticed your business and wanted to offer fast, reliable plumbing support in your area.
@@ -39,7 +36,14 @@ Let us know if you need help.
 
 Best regards,
 LeadGen Team
-                """
+
+<img src="https://leadgen-api-khfd.onrender.com/track/open/{lead.id}" width="1" height="1" />
+"""
+
+            send_email(
+                to_email=lead.email,
+                subject=lead.subject,
+                body=body
             )
 
             lead.sent_at = datetime.utcnow()
