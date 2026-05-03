@@ -60,8 +60,8 @@ def send_match_outreach():
     errors = []
 
     try:
-        # Only fetch unsent matches with score >= 60 where plumber has email
-        matches = (
+        # Get all unsent matches with score >= 60, ordered by score
+        all_matches = (
             db.query(Match, DemandProspect, Plumber)
             .join(DemandProspect, Match.demand_prospect_id == DemandProspect.id)
             .join(Plumber, Match.plumber_id == Plumber.id)
@@ -69,11 +69,19 @@ def send_match_outreach():
             .filter(Match.match_score >= 60)
             .filter(Plumber.email.isnot(None))
             .order_by(Match.match_score.desc())
-            .limit(20)
             .all()
         )
 
-        for match, demand, plumber in matches:
+        # Cap at 3 matches per plumber
+        plumber_counts = {}
+        selected = []
+        for match, demand, plumber in all_matches:
+            count = plumber_counts.get(plumber.id, 0)
+            if count < 3:
+                selected.append((match, demand, plumber))
+                plumber_counts[plumber.id] = count + 1
+
+        for match, demand, plumber in selected:
             if not plumber.email:
                 skipped += 1
                 continue
@@ -100,7 +108,6 @@ def send_match_outreach():
 
                 match.outreach_sent = 1
                 match.outreach_sent_at = datetime.utcnow()
-
                 sent += 1
 
             except Exception as e:
@@ -118,7 +125,6 @@ def send_match_outreach():
 
     finally:
         db.close()
-
 
 # --------------------------------------------------------------------------- #
 # STANDARD OUTREACH + FOLLOW-UP
