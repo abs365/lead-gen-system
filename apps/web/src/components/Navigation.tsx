@@ -8,6 +8,7 @@ const LINKS = [
   { href: "/plumbers", label: "Plumbers" },
   { href: "/demand",   label: "Demand Prospects" },
   { href: "/matches",  label: "Matches" },
+  { href: "/ops",      label: "Ops" },
 ];
 
 export default function Navigation() {
