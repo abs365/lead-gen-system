@@ -11,146 +11,131 @@ import {
   LabelList,
 } from "recharts";
 
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+
 export default function Dashboard() {
-  const [analytics, setAnalytics] = useState<any>(null);
-  const [activity, setActivity] = useState<any[]>([]);
+  const [pipeline, setPipeline] = useState<any>(null);
+  const [matches, setMatches] = useState<any[]>([]);
+  const [sending, setSending] = useState(false);
 
-  // -----------------------------
-  // LOAD ANALYTICS
-  // -----------------------------
-  async function loadAnalytics() {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/analytics/pipeline`);
-    const data = await res.json();
-    setAnalytics(data);
+  async function loadPipeline() {
+    try {
+      const res = await fetch(`${API}/analytics/pipeline`);
+      const data = await res.json();
+      setPipeline(data);
+    } catch (e) {
+      console.error("Pipeline load failed", e);
+    }
   }
 
-  // -----------------------------
-  // LOAD ACTIVITY
-  // -----------------------------
-  async function loadActivity() {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/analytics/matches`);
-    const data = await res.json();
-    setActivity(data);
+  async function loadMatches() {
+    try {
+      const res = await fetch(`${API}/analytics/matches`);
+      const data = await res.json();
+      setMatches(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error("Matches load failed", e);
+    }
   }
 
-  // -----------------------------
-  // SEND EMAILS
-  // -----------------------------
   async function sendOutreach() {
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/automation/send-outreach`, {
-      method: "POST",
-    });
-    loadAnalytics();
-    loadActivity();
+    setSending(true);
+    try {
+      await fetch(`${API}/automation/send-outreach`, { method: "GET" });
+      await loadPipeline();
+      await loadMatches();
+    } finally {
+      setSending(false);
+    }
   }
 
-  // -----------------------------
-  // AUTO REFRESH
-  // -----------------------------
+  async function sendMatchOutreach() {
+    setSending(true);
+    try {
+      await fetch(`${API}/automation/send-match-outreach`, { method: "POST" });
+      await loadMatches();
+    } finally {
+      setSending(false);
+    }
+  }
+
   useEffect(() => {
-    loadAnalytics();
-    loadActivity();
-
+    loadPipeline();
+    loadMatches();
     const interval = setInterval(() => {
-      loadAnalytics();
-      loadActivity();
+      loadPipeline();
+      loadMatches();
     }, 10000);
-
     return () => clearInterval(interval);
   }, []);
 
-  if (!analytics) return <div>Loading...</div>;
+  const chartData = pipeline
+    ? [
+        { name: "New", value: pipeline.new ?? 0 },
+        { name: "Contacted", value: pipeline.contacted ?? 0 },
+        { name: "Interested", value: pipeline.interested ?? 0 },
+        { name: "Closed", value: pipeline.closed ?? 0 },
+      ]
+    : [];
 
-  // -----------------------------
-  // CALCULATIONS
-  // -----------------------------
-  const openRate =
-    analytics.total_sent > 0
-      ? ((analytics.opened / analytics.total_sent) * 100).toFixed(1)
-      : 0;
-
-  const clickRate =
-    analytics.total_sent > 0
-      ? ((analytics.clicked / analytics.total_sent) * 100).toFixed(1)
-      : 0;
-
-  const chartData = [
-    {
-      name: "Sent",
-      value: analytics.total_sent,
-      label: "100%",
-    },
-    {
-      name: "Opened",
-      value: analytics.opened,
-      label: `${openRate}%`,
-    },
-    {
-      name: "Clicked",
-      value: analytics.clicked,
-      label: `${clickRate}%`,
-    },
-  ];
+  const total = pipeline
+    ? (pipeline.new ?? 0) +
+      (pipeline.contacted ?? 0) +
+      (pipeline.interested ?? 0) +
+      (pipeline.closed ?? 0)
+    : 0;
 
   return (
     <div style={{ padding: 30, maxWidth: 1200, margin: "0 auto" }}>
       <h1>LeadGen Performance Dashboard</h1>
 
-      <button onClick={sendOutreach} style={{ marginBottom: 20 }}>
-        Send Outreach
-      </button>
-
-      {/* METRICS */}
-      <div style={{ display: "flex", gap: 20, marginBottom: 30 }}>
-        <Card title="Total Sent" value={analytics.total_sent} />
-        <Card title="Open Rate %" value={analytics.open_rate_percent} />
-        <Card title="Click Rate %" value={analytics.click_rate_percent} />
+      <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
+        <button onClick={sendOutreach} disabled={sending}>
+          {sending ? "Sending..." : "Send Outreach"}
+        </button>
+        <button onClick={sendMatchOutreach} disabled={sending}>
+          {sending ? "Sending..." : "Send Match Outreach"}
+        </button>
       </div>
 
-      {/* CHART */}
-      <h2>Outreach Funnel</h2>
+      {/* KPI CARDS */}
+      <div style={{ display: "flex", gap: 20, marginBottom: 30 }}>
+        <Card title="Total Leads" value={total} />
+        <Card title="Contacted" value={pipeline?.contacted ?? "—"} />
+        <Card title="Interested" value={pipeline?.interested ?? "—"} />
+        <Card title="Closed" value={pipeline?.closed ?? "—"} />
+      </div>
 
+      {/* PIPELINE CHART */}
+      <h2>Lead Pipeline</h2>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={chartData}>
           <XAxis dataKey="name" />
           <YAxis />
           <Tooltip />
           <Bar dataKey="value" fill="#3b82f6">
-            <LabelList dataKey="label" position="top" />
+            <LabelList dataKey="value" position="top" />
           </Bar>
         </BarChart>
       </ResponsiveContainer>
 
-      {/* TABLE */}
-      <h2 style={{ marginTop: 40 }}>Recent Activity</h2>
-
+      {/* MATCHES TABLE */}
+      <h2 style={{ marginTop: 40 }}>Top Matches</h2>
       <div style={{ marginTop: 20 }}>
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            fontSize: 14,
-          }}
-        >
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
           <thead>
             <tr style={{ background: "#f5f5f5" }}>
-              <th style={cell}>Email</th>
-              <th style={cell}>Subject</th>
-              <th style={cell}>Opened</th>
-              <th style={cell}>Clicked</th>
-              <th style={cell}>Time</th>
+              <th style={cell}>Prospect</th>
+              <th style={cell}>Plumber</th>
+              <th style={cell}>Match Score</th>
             </tr>
           </thead>
           <tbody>
-            {Array.isArray(activity) && activity.map((a, i) => (
+            {matches.map((m, i) => (
               <tr key={i}>
-                <td style={cell}>{a.email}</td>
-                <td style={cell}>{a.subject}</td>
-                <td style={cell}>{a.opened ? "✔" : "—"}</td>
-                <td style={cell}>{a.clicked ? "✔" : "—"}</td>
-                <td style={cell}>
-                  {new Date(a.sent_at).toLocaleString()}
-                </td>
+                <td style={cell}>{m.prospect_name}</td>
+                <td style={cell}>{m.plumber_name}</td>
+                <td style={cell}>{m.match_score}</td>
               </tr>
             ))}
           </tbody>
@@ -160,9 +145,6 @@ export default function Dashboard() {
   );
 }
 
-// -----------------------------
-// CARD COMPONENT
-// -----------------------------
 function Card({ title, value }: { title: string; value: any }) {
   return (
     <div
@@ -170,7 +152,7 @@ function Card({ title, value }: { title: string; value: any }) {
         border: "1px solid #ddd",
         borderRadius: 8,
         padding: 20,
-        minWidth: 200,
+        minWidth: 180,
         background: "#fff",
         boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
       }}
@@ -181,9 +163,6 @@ function Card({ title, value }: { title: string; value: any }) {
   );
 }
 
-// -----------------------------
-// TABLE CELL STYLE
-// -----------------------------
 const cell = {
   border: "1px solid #ddd",
   padding: "8px",
