@@ -1,6 +1,3 @@
-bash
-
-cat > /home/claude/ops_page.tsx << 'ENDOFFILE'
 "use client";
 
 import { useState } from "react";
@@ -245,8 +242,3 @@ function Btn({
     </button>
   );
 }
-ENDOFFILE
-echo "Done"
-Output
-
-Done
