@@ -1,4 +1,3 @@
-cat > /home/claude/ops_new.tsx << 'EOF'
 "use client";
 
 import { useState } from "react";
