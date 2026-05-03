@@ -19,7 +19,7 @@ export default function Dashboard() {
   // LOAD ANALYTICS
   // -----------------------------
   async function loadAnalytics() {
-    const res = await fetch("http://127.0.0.1:8000/analytics/outreach");
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/analytics/pipeline`);
     const data = await res.json();
     setAnalytics(data);
   }
@@ -28,7 +28,7 @@ export default function Dashboard() {
   // LOAD ACTIVITY
   // -----------------------------
   async function loadActivity() {
-    const res = await fetch("http://127.0.0.1:8000/analytics/recent-activity");
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/analytics/matches`);
     const data = await res.json();
     setActivity(data);
   }
@@ -37,7 +37,7 @@ export default function Dashboard() {
   // SEND EMAILS
   // -----------------------------
   async function sendOutreach() {
-    await fetch("http://127.0.0.1:8000/send-outreach", {
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/automation/send-outreach`, {
       method: "POST",
     });
     loadAnalytics();
