@@ -1,327 +1,255 @@
+# --------------------------------------------------------------------------- #
+# IMPORTS
+# --------------------------------------------------------------------------- #
+
 import logging
+from datetime import datetime
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from sqlalchemy.sql import func
+from pydantic import BaseModel
 
-from database import get_db
-from models import DemandProspect, JobLog, Plumber, ProspectSignal
-from services.adapters.google_places import search_plumbers
-from services.adapters.companies_house import search_companies
-from services.adapters.fsa import search_demand
-from services.enrichment import extract_contact_details, detect_commercial_plumber
-from services.matching import run_matching
-from services.scoring import calculate_demand_score
-from services.scoring import assign_high_priority_flags
+from database import get_db, SessionLocal
+from services.security import require_api_key
+from utils.email import send_email
+from services.auto_send import run_auto_send
+from services.reply_handler import process_replies
+
+from models import Plumber, Opportunity
+
+# --------------------------------------------------------------------------- #
+# ROUTER
+# --------------------------------------------------------------------------- #
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+
+router = APIRouter(
+    prefix="/collect",
+    tags=["collect"],
+    dependencies=[Depends(require_api_key)]
+)
+
+# --------------------------------------------------------------------------- #
+# REQUEST MODELS
+# --------------------------------------------------------------------------- #
+
+class SendOpportunityRequest(BaseModel):
+    opportunity_id: int
+    plumber_id: int
+
+
+class OpportunityCreate(BaseModel):
+    business_name: str
+    category: str | None = None
+    location: str | None = None
+    issue_detected: str
+    urgency_score: int = 0
+    estimated_value: int = 0
 
 
 # --------------------------------------------------------------------------- #
-# COLLECT PLUMBERS
+# AUTO SEND
 # --------------------------------------------------------------------------- #
 
-@router.post("/collect/plumbers")
-def collect_plumbers(db: Session = Depends(get_db)):
-    db.add(JobLog(job_type="collect_plumbers", status="started"))
-    db.commit()
+@router.post("/opportunities/auto-send")
+def auto_send():
+    run_auto_send()
+    return {"message": "Auto send executed"}
 
-    records = search_plumbers("plumber", "London, UK")
 
-    inserted = 0
-    skipped = 0
+# --------------------------------------------------------------------------- #
+# MARK INTERESTED
+# --------------------------------------------------------------------------- #
 
-    for record in records:
-        if "google_place_id" in record:
-            record["place_id"] = record.pop("google_place_id")
+@router.post("/opportunities/mark-interested")
+def mark_interested(opportunity_id: int):
+    db = SessionLocal()
 
-        existing = db.query(Plumber).filter(
-            Plumber.place_id == record.get("place_id")
+    try:
+        opp = db.query(Opportunity).filter(
+            Opportunity.id == opportunity_id
         ).first()
 
-        if existing:
-            skipped += 1
-            continue
+        if not opp:
+            return {"error": "Opportunity not found"}
 
-        db.add(Plumber(**record))
-        inserted += 1
+        opp.is_interested = 1
+        opp.status = "interested"
 
-    db.commit()
+        db.commit()
 
-    db.add(JobLog(
-        job_type="collect_plumbers",
-        status="completed",
-        message=f"inserted={inserted} skipped={skipped}"
-    ))
-    db.commit()
+        return {"message": "Marked as interested"}
 
-    return {"inserted": inserted, "skipped": skipped}
+    finally:
+        db.close()
 
 
 # --------------------------------------------------------------------------- #
-# ENRICH PLUMBERS
+# GET OPPORTUNITIES
 # --------------------------------------------------------------------------- #
 
-@router.post("/enrich/prospects")
-def enrich_prospects(db: Session = Depends(get_db)):
-    plumbers = db.query(Plumber).all()
+@router.get("/opportunities")
+def get_opportunities():
+    db = SessionLocal()
+    try:
+        return db.query(Opportunity).all()
+    finally:
+        db.close()
 
+
+# --------------------------------------------------------------------------- #
+# GET PLUMBERS
+# --------------------------------------------------------------------------- #
+
+@router.get("/plumbers")
+def get_plumbers():
+    db = SessionLocal()
+    try:
+        return db.query(Plumber).all()
+    finally:
+        db.close()
+
+
+# --------------------------------------------------------------------------- #
+# CREATE TEST PLUMBER
+# --------------------------------------------------------------------------- #
+
+@router.post("/plumbers/create-test")
+def create_test_plumber():
+    db = SessionLocal()
+    try:
+        plumber = Plumber(
+            name="Test Plumber",
+            email="blue2gtv@gmail.com"
+        )
+
+        db.add(plumber)
+        db.commit()
+        db.refresh(plumber)
+
+        return plumber
+    finally:
+        db.close()
+
+
+@router.post("/replies/process")
+def process_reply_endpoint():
+    process_replies()
+    return {"message": "Replies processed"}
+
+
+# --------------------------------------------------------------------------- #
+# CREATE OPPORTUNITY
+# --------------------------------------------------------------------------- #
+
+@router.post("/opportunities/create")
+def create_opportunity(data: OpportunityCreate):
+    db = SessionLocal()
+    try:
+        opportunity = Opportunity(
+            business_name=data.business_name,
+            category=data.category,
+            location=data.location,
+            issue_detected=data.issue_detected,
+            urgency_score=data.urgency_score,
+            estimated_value=data.estimated_value,
+            status="new"
+        )
+
+        db.add(opportunity)
+        db.commit()
+        db.refresh(opportunity)
+
+        return {"id": opportunity.id}
+    finally:
+        db.close()
+
+
+# --------------------------------------------------------------------------- #
+# SEND OPPORTUNITY
+# --------------------------------------------------------------------------- #
+
+@router.post("/opportunities/send")
+def send_opportunity(data: SendOpportunityRequest):
+    db = SessionLocal()
+    try:
+        opportunity = db.query(Opportunity).filter(
+            Opportunity.id == data.opportunity_id
+        ).first()
+
+        plumber = db.query(Plumber).filter(
+            Plumber.id == data.plumber_id
+        ).first()
+
+        if not opportunity or not plumber:
+            return {"error": "Opportunity or plumber not found"}
+
+        plumber_email = getattr(plumber, "email", None)
+
+        if not plumber_email:
+            return {"error": "Plumber email not found"}
+
+        subject = f"New plumbing job in your area (£{opportunity.estimated_value})"
+
+        body = f"""
+Hi,
+
+We've identified a business in your area that may need plumbing work.
+
+Business: {opportunity.business_name}
+Location: {opportunity.location}
+Issue: {opportunity.issue_detected}
+Estimated value: £{opportunity.estimated_value}
+Urgency: {opportunity.urgency_score}/10
+
+Reply YES if interested.
+
+– MeritBold
+"""
+
+        send_email(plumber_email, subject, body)
+
+        opportunity.status = "sent"
+        opportunity.plumber_id = plumber.id
+        opportunity.sent_at = datetime.utcnow()
+
+        db.commit()
+
+        return {"message": "Opportunity sent"}
+
+    finally:
+        db.close()
+
+
+# --------------------------------------------------------------------------- #
+# SCORING + MATCHING
+# --------------------------------------------------------------------------- #
+
+@router.get("/score-demand")
+def score_demand_endpoint(db: Session = Depends(get_db)):
+    from services.scoring import calculate_demand_score, assign_high_priority_flags
+    from models import DemandProspect
+    prospects = db.query(DemandProspect).all()
     updated = 0
-    skipped = 0
-
-    for plumber in plumbers:
-        changed = False
-
-        if plumber.website:
-            email, phone = extract_contact_details(plumber.website)
-
-            if plumber.email is None and email:
-                plumber.email = email
-                changed = True
-
-            if plumber.phone is None and phone:
-                plumber.phone = phone
-                changed = True
-
-            plumber.is_commercial = detect_commercial_plumber(plumber.website)
-            changed = True
-
-        if changed:
-            plumber.updated_at = func.now()
-            updated += 1
-        else:
-            skipped += 1
-
-    db.commit()
-
-    db.add(JobLog(
-        job_type="enrich_plumber_emails",
-        status="completed",
-        message=f"updated={updated} skipped={skipped}"
-    ))
-    db.commit()
-
-    return {"updated": updated, "skipped": skipped}
-
-
-# --------------------------------------------------------------------------- #
-# COLLECT COMPANIES
-# --------------------------------------------------------------------------- #
-
-@router.post("/collect/companies")
-def collect_companies(db: Session = Depends(get_db)):
-    db.add(JobLog(job_type="collect_companies", status="started"))
-    db.commit()
-
-    inserted = 0
-    skipped = 0
-
-    page = 1
-    max_pages = 3
-
-    while page <= max_pages:
-        records = search_companies("restaurant", "London", page, 20)
-
-        if not records:
-            break
-
-        for record in records:
-            company_number = record.get("company_number")
-
-            existing = db.query(DemandProspect).filter(
-                DemandProspect.source == "companies_house",
-                DemandProspect.source_record_id == company_number
-            ).first()
-
-            if existing:
-                skipped += 1
-                continue
-
-            prospect = DemandProspect(
-                name=record.get("name"),
-                category="company",
-                address=record.get("address"),
-                source="companies_house",
-                source_record_id=company_number,
-                status="new",
-            )
-
-            db.add(prospect)
-            db.flush()
-
-            db.add(ProspectSignal(
-                prospect_id=prospect.id,
-                signal_type="new_company",
-                signal_source="companies_house",
-                signal_strength="medium",
-                freshness_score=1.0
-            ))
-
-            score, breakdown = calculate_demand_score(
-                signals=["new_company"],
-                source="companies_house",
-                inspection_date=None
-            )
-
-            prospect.demand_score = score
-            prospect.score_breakdown = breakdown
-
-            inserted += 1
-
-        page += 1
-
-    db.commit()
-
-    db.add(JobLog(
-        job_type="collect_companies",
-        status="completed",
-        message=f"pages={page-1} inserted={inserted} skipped={skipped}"
-    ))
-    db.commit()
-
-    return {"pages_processed": page - 1, "inserted": inserted, "skipped": skipped}
-
-
-# --------------------------------------------------------------------------- #
-# COLLECT DEMAND (FSA)
-# --------------------------------------------------------------------------- #
-
-@router.post("/collect/demand")
-def collect_demand(db: Session = Depends(get_db)):
-    db.add(JobLog(job_type="collect_demand", status="started"))
-    db.commit()
-
-    inserted = 0
-    skipped = 0
-
-    page = 1
-    max_pages = 5
-
-    while page <= max_pages:
-        records = search_demand("London", "Restaurant/Cafe/Canteen", page, 50)
-
-        if not records:
-            break
-
-        for record in records:
-            fsa_id = record.get("fsa_establishment_id")
-
-            existing = db.query(DemandProspect).filter(
-                DemandProspect.source == "fsa",
-                DemandProspect.fsa_establishment_id == fsa_id
-            ).first()
-
-            if existing:
-                skipped += 1
-                continue
-
-            prospect = DemandProspect(
-                name=record.get("name"),
-                category=record.get("category"),
-                address=record.get("address"),
-                postcode=record.get("postcode"),
-                borough=record.get("borough"),
-                source="fsa",
-                source_record_id=fsa_id,
-                fsa_establishment_id=fsa_id,
-                fsa_rating=record.get("fsa_rating"),
-                last_inspection_date=record.get("last_inspection_date"),
-                status="new",
-            )
-
-            db.add(prospect)
-            db.flush()
-
-            signals = ["new_food_business", "high_water_usage"]
-
-            if not record.get("website"):
-                signals.append("no_website")
-
-            for signal in signals:
-                db.add(ProspectSignal(
-                    prospect_id=prospect.id,
-                    signal_type=signal,
-                    signal_source="fsa",
-                    signal_strength="high",
-                    freshness_score=1.0
-                ))
-
-            score, breakdown = calculate_demand_score(
-                signals=signals,
-                source="fsa",
-                inspection_date=record.get("last_inspection_date")
-            )
-
-            prospect.demand_score = score
-            prospect.score_breakdown = breakdown
-
-            inserted += 1
-
-        page += 1
-
-    db.commit()
-
-    db.add(JobLog(
-        job_type="collect_demand",
-        status="completed",
-        message=f"pages={page-1} inserted={inserted} skipped={skipped}"
-    ))
-    db.commit()
-
-    return {"pages_processed": page - 1, "inserted": inserted, "skipped": skipped}
-
-
-# --------------------------------------------------------------------------- #
-# MATCHING
-# --------------------------------------------------------------------------- #
-
-from services.scoring import assign_high_priority_flags
-
-@router.post("/run-matching")
-def run_matching_endpoint(db: Session = Depends(get_db)):
-    created = run_matching(db)
-
-    # IMPORTANT: assign priority AFTER matching
-    assign_high_priority_flags(db)
-
-    return {"matches_created": created}
-    created = run_matching(db)
-    return {"matches_created": created}
-
-    updated = 0
-    skipped = 0
-
     for p in prospects:
-        changed = False
-
-        # find website
-        if not p.website:
-            website = find_business_website(p.name)
-            if website:
-                p.website = website
-                changed = True
-
-        # extract contact
-        if p.website:
-            email, phone = extract_contact_details(p.website)
-
-            if not p.email and email:
-                p.email = email
-                changed = True
-
-            if not p.phone and phone:
-                p.phone = phone
-                changed = True
-
-        if changed:
-            p.updated_at = func.now()
-            updated += 1
-        else:
-            skipped += 1
-
+        raw = p.score_breakdown or ""
+        signals = [s.strip() for s in raw.split(",") if s.strip()]
+        score, breakdown = calculate_demand_score(
+            signals=signals,
+            source=p.source or "fsa",
+            inspection_date=p.last_inspection_date
+        )
+        p.demand_score = score
+        p.score_breakdown = breakdown
+        p.is_high_priority = 1 if score >= 70 else 0
+        updated += 1
+    assign_high_priority_flags(db)
     db.commit()
+    return {"success": True, "scored": updated}
 
-    return {
-        "updated": updated,
-        "skipped": skipped
-    }
+
+@router.get("/run-matching-engine")
+def run_matching_engine_endpoint(db: Session = Depends(get_db)):
+    from services.matching_engine import run_matching_engine
+    result = run_matching_engine(db)
+    return result

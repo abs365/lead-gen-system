@@ -19,21 +19,27 @@ class OutreachLog(Base):
     __tablename__ = "outreach_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    match_id = Column(Integer, ForeignKey("matches.id"))
-    plumber_id = Column(Integer, ForeignKey("plumbers.id"))
+    email = Column(String, nullable=False)
+    subject = Column(String)
 
-    tracking_id = Column(String(255), index=True)
     opened = Column(Integer, default=0)
     clicked = Column(Integer, default=0)
 
-    email = Column(String)
-    subject = Column(String)
-    body = Column(Text)  # FIXED
+    sent_at = Column(DateTime)
 
-    status = Column(String)
-    error_message = Column(String, nullable=True)
+    follow_up_step = Column(Integer, default=0)
+    last_contacted_at = Column(DateTime)
 
-    sent_at = Column(DateTime, default=_utcnow)
+    lead_score = Column(Integer, default=0)
+    replied = Column(Integer, default=0)
+
+    status = Column(String, default="new")
+
+    deal_value = Column(Integer, default=0)
+    estimated_value = Column(Integer, default=0)
+    close_probability = Column(Integer, default=0)
+
+    auto_replied = Column(Integer, default=0)
 
 
 # --------------------------------------------------------------------------- #
@@ -45,17 +51,20 @@ class Plumber(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
+
     address = Column(Text)
     postcode = Column(String(20))
     city = Column(String(100), default="London")
     borough = Column(String(100))
+
     website = Column(String(500))
     email = Column(String(255))
     phone = Column(String(50))
+
     lat = Column(Float)
     lng = Column(Float)
 
-    place_id = Column(String(255), unique=True, index=True, nullable=True)
+    place_id = Column(String(255), unique=True, index=True)
     source = Column(String(100), default="google_places")
     category = Column(String(100), default="plumber")
 
@@ -78,6 +87,7 @@ class DemandProspect(Base):
 
     name = Column(String(255), nullable=False)
     category = Column(String(100))
+
     address = Column(Text)
     city = Column(String(100), default="London")
     borough = Column(String(100))
@@ -155,10 +165,41 @@ class Match(Base):
 
     match_score = Column(Integer, default=0)
     match_reason = Column(Text)
+
+    outreach_sent = Column(Integer, default=0)
+    outreach_sent_at = Column(DateTime, nullable=True)
+
     created_at = Column(DateTime, default=_utcnow)
 
     demand_prospect = relationship("DemandProspect", back_populates="matches")
     plumber = relationship("Plumber", back_populates="matches")
+
+
+# --------------------------------------------------------------------------- #
+# Opportunities (CLEAN VERSION)
+# --------------------------------------------------------------------------- #
+
+class Opportunity(Base):
+    __tablename__ = "opportunities"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    business_name = Column(String, nullable=False)
+    category = Column(String)
+    location = Column(String)
+
+    issue_detected = Column(String, nullable=False)
+    urgency_score = Column(Integer, default=0)
+    estimated_value = Column(Integer, default=0)
+    is_interested = Column(Integer, default=0)
+
+    status = Column(String, default="new")
+
+    plumber_id = Column(Integer)
+
+    created_at = Column(DateTime, default=_utcnow)
+    sent_at = Column(DateTime)
+    accepted_at = Column(DateTime)
 
 
 # --------------------------------------------------------------------------- #
@@ -174,3 +215,26 @@ class JobLog(Base):
     message = Column(Text)
     records_processed = Column(Integer, default=0)
     created_at = Column(DateTime, default=_utcnow)
+
+
+# --------------------------------------------------------------------------- #
+# Settings
+# --------------------------------------------------------------------------- #
+
+class Settings(Base):
+    __tablename__ = "settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    active_imap_email = Column(String(255), nullable=True)
+    active_imap_password = Column(String(500), nullable=True)
+    active_imap_host = Column(String(255), nullable=True)
+    active_imap_port = Column(Integer, default=993)
+
+    active_smtp_email = Column(String(255), nullable=True)
+    active_smtp_password = Column(String(500), nullable=True)
+    active_smtp_host = Column(String(255), nullable=True)
+    active_smtp_port = Column(Integer, default=587)
+
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)

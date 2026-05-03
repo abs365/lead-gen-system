@@ -6,24 +6,32 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-SMTP_HOST = os.getenv("SMTP_HOST")
-SMTP_PORT = int(os.getenv("SMTP_PORT"))
-SMTP_USER = os.getenv("SMTP_USER")
-SMTP_PASS = os.getenv("SMTP_PASS")
-FROM_EMAIL = os.getenv("FROM_EMAIL")
+EMAIL_USER = os.getenv("EMAIL_USER")
+EMAIL_PASS = os.getenv("EMAIL_PASS")
 
 
 def send_email(to_email: str, subject: str, body: str):
+    print("SENDING TO:", to_email)
+
+    if not EMAIL_USER or not EMAIL_PASS:
+        raise Exception("EMAIL credentials missing")
+
     msg = MIMEMultipart()
-    msg["From"] = FROM_EMAIL
+    msg["From"] = EMAIL_USER
     msg["To"] = to_email
     msg["Subject"] = subject
 
-    msg.attach(MIMEText(body, "plain"))
+    msg.attach(MIMEText(body, "html"))
 
-    server = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
-    server.starttls()
-    server.login(SMTP_USER, SMTP_PASS)
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            server.set_debuglevel(1)  # SHOW SMTP LOGS
+            server.starttls()
+            server.login(EMAIL_USER, EMAIL_PASS)
+            server.send_message(msg)
 
-    server.send_message(msg)
-    server.quit()
+        print("EMAIL SENT SUCCESS:", to_email)
+
+    except Exception as e:
+        print("EMAIL FAILED:", e)
+        raise

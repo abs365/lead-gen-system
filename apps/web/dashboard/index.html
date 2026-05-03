@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Lead Dashboard</title>
+    <style>
+        body {
+            font-family: Arial;
+            padding: 20px;
+            background: #0f172a;
+            color: white;
+        }
+
+        .card {
+            background: #1e293b;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        td, th {
+            padding: 10px;
+            border-bottom: 1px solid #334155;
+        }
+
+        button {
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<h1>🚀 Lead System Dashboard</h1>
+
+<div class="card">
+    <div id="pipeline">Loading...</div>
+</div>
+
+<div class="card">
+    <div id="revenue">Loading...</div>
+</div>
+
+<div class="card">
+    <div id="leadsCount">Loading...</div>
+</div>
+
+<div class="card">
+    <h3>🔥 Priority Leads</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Email</th>
+                <th>Status</th>
+                <th>Score</th>
+                <th>Value</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="leadsTable"></tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h3>🤝 Matches</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Prospect</th>
+                <th>Plumber</th>
+                <th>Score</th>
+            </tr>
+        </thead>
+        <tbody id="matchesTable"></tbody>
+    </table>
+</div>
+
+<button onclick="loadData()">Refresh</button>
+
+<script>
+async function loadData() {
+
+    // PIPELINE
+    const pipeline = await fetch("http://127.0.0.1:8000/analytics/pipeline").then(r => r.json());
+    document.getElementById("pipeline").innerText =
+        `Pipeline → New: ${pipeline.new} | Contacted: ${pipeline.contacted} | Interested: ${pipeline.interested} | Closed: ${pipeline.closed}`;
+
+    // REVENUE
+    const revenue = await fetch("http://127.0.0.1:8000/analytics/revenue").then(r => r.json());
+    document.getElementById("revenue").innerText =
+        `Revenue → £${revenue.total_revenue}`;
+
+    // PRIORITY LEADS
+    const leads = await fetch("http://127.0.0.1:8000/analytics/priority-leads").then(r => r.json());
+    document.getElementById("leadsCount").innerText =
+        `Priority Leads → ${leads.length}`;
+
+    const leadsTable = document.getElementById("leadsTable");
+    leadsTable.innerHTML = "";
+
+    leads.forEach(lead => {
+        leadsTable.innerHTML += `
+        <tr>
+            <td>${lead.email}</td>
+            <td>${lead.status}</td>
+            <td>${lead.lead_score}</td>
+            <td>£${lead.estimated_value}</td>
+            <td>
+                <button onclick="closeDeal(${lead.id})">Close</button>
+            </td>
+        </tr>
+        `;
+    });
+
+    // MATCHES
+    const matches = await fetch("http://127.0.0.1:8000/analytics/matches").then(r => r.json());
+
+    const matchesTable = document.getElementById("matchesTable");
+    matchesTable.innerHTML = "";
+
+    matches.forEach(m => {
+        matchesTable.innerHTML += `
+        <tr>
+            <td>${m.prospect_name}</td>
+            <td>${m.plumber_name}</td>
+            <td>${m.match_score}</td>
+        </tr>
+        `;
+    });
+}
+
+async function closeDeal(id) {
+    const value = prompt("Enter deal value:");
+    if (!value) return;
+
+    await fetch(`http://127.0.0.1:8000/analytics/close-deal/${id}/${value}`, {
+        method: "POST"
+    });
+
+    loadData();
+}
+
+loadData();
+</script>
+
+</body>
+</html>

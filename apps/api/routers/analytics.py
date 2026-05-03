@@ -1,62 +1,145 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from database import SessionLocal
+from database import get_db
 from models import OutreachLog
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        return db
-    finally:
-        db.close()
+# --------------------------------------------------------------------------- #
+# PIPELINE
+# --------------------------------------------------------------------------- #
 
-
-@router.get("/outreach")
-def get_outreach_analytics():
-    db: Session = get_db()
-
-    total_sent = db.query(OutreachLog).filter(OutreachLog.sent_at != None).count()
-    opened = db.query(OutreachLog).filter(OutreachLog.opened == 1).count()
-    clicked = db.query(OutreachLog).filter(OutreachLog.clicked == 1).count()
-
-    open_rate = (opened / total_sent * 100) if total_sent > 0 else 0
-    click_rate = (clicked / total_sent * 100) if total_sent > 0 else 0
-
+@router.get("/pipeline")
+def pipeline(db: Session = Depends(get_db)):
     return {
-        "total_sent": total_sent,
-        "opened": opened,
-        "clicked": clicked,
-        "open_rate_percent": round(open_rate, 2),
-        "click_rate_percent": round(click_rate, 2),
+        "new": db.query(OutreachLog).filter(OutreachLog.status == "new").count(),
+        "contacted": db.query(OutreachLog).filter(OutreachLog.status == "contacted").count(),
+        "interested": db.query(OutreachLog).filter(OutreachLog.status == "interested").count(),
+        "closed": db.query(OutreachLog).filter(OutreachLog.status == "closed").count(),
     }
 
 
-@router.get("/recent-activity")
-def get_recent_activity():
-    db: Session = get_db()
+# --------------------------------------------------------------------------- #
+# REVENUE
+# --------------------------------------------------------------------------- #
 
-    try:
-        rows = (
-            db.query(OutreachLog)
-            .filter(OutreachLog.sent_at != None)
-            .order_by(OutreachLog.sent_at.desc())
-            .limit(10)
-            .all()
-        )
+@router.get("/revenue")
+def revenue(db: Session = Depends(get_db)):
+    total = db.query(OutreachLog).filter(
+        OutreachLog.status == "closed"
+    ).with_entities(OutreachLog.deal_value).all()
 
-        return [
-            {
-                "email": r.email,
-                "subject": r.subject,
-                "opened": r.opened,
-                "clicked": r.clicked,
-                "sent_at": r.sent_at,
-            }
-            for r in rows
-        ]
-    finally:
-        db.close()
+    total_revenue = sum([v[0] for v in total if v[0]])
+
+    return {
+        "total_revenue": total_revenue
+    }
+
+
+# --------------------------------------------------------------------------- #
+# PRIORITY LEADS
+# --------------------------------------------------------------------------- #
+
+@router.get("/priority-leads")
+def priority_leads(db: Session = Depends(get_db)):
+    leads = db.query(OutreachLog)\
+        .order_by(OutreachLog.lead_score.desc())\
+        .limit(10)\
+        .all()
+
+    return leads
+
+
+# --------------------------------------------------------------------------- #
+# RECALCULATE SCORES
+# --------------------------------------------------------------------------- #
+
+@router.post("/recalculate-scores")
+def recalculate_scores(db: Session = Depends(get_db)):
+    from services.scoring import calculate_lead_score
+
+    leads = db.query(OutreachLog).all()
+
+    updated = 0
+
+    for lead in leads:
+        lead.lead_score = calculate_lead_score(lead)
+        updated += 1
+
+    db.commit()
+
+    return {
+        "success": True,
+        "updated": updated
+    }
+
+@router.get("/matches")
+def get_matches(db: Session = Depends(get_db)):
+    from models import Match, DemandProspect, Plumber
+
+    matches = db.query(Match, DemandProspect, Plumber)\
+        .join(DemandProspect, Match.demand_prospect_id == DemandProspect.id)\
+        .join(Plumber, Match.plumber_id == Plumber.id)\
+        .order_by(Match.match_score.desc())\
+        .limit(20)\
+        .all()
+
+    result = []
+
+    for m, prospect, plumber in matches:
+        result.append({
+            "prospect_name": prospect.name,
+            "plumber_name": plumber.name,
+            "match_score": m.match_score
+        })
+
+    return result
+
+@router.post("/close-deal/{lead_id}/{value}")
+def close_deal(lead_id: int, value: int, db: Session = Depends(get_db)):
+    lead = db.query(OutreachLog).filter(OutreachLog.id == lead_id).first()
+
+    if not lead:
+        return {"success": False, "message": "Lead not found"}
+
+    lead.status = "closed"
+    lead.deal_value = value
+
+    db.commit()
+
+    return {
+        "success": True,
+        "lead_id": lead_id,
+        "value": value
+    }
+
+@router.post("/clean-bad-leads")
+def clean_bad_leads(db: Session = Depends(get_db)):
+    leads = db.query(OutreachLog).all()
+
+    deleted = 0
+
+    for lead in leads:
+        email = (lead.email or "").lower()
+
+        if not email or "@" not in email:
+            db.delete(lead)
+            deleted += 1
+            continue
+
+        domain = email.split("@")[-1]
+
+        if (
+            "." not in domain
+            or any(x in email for x in ["user@", "example", "test@", "noreply"])
+            or domain.startswith(tuple("0123456789"))
+            or any(char.isdigit() for char in domain.split(".")[-1])
+        ):
+            db.delete(lead)
+            deleted += 1
+
+    db.commit()
+
+    return {"deleted": deleted}

@@ -1,6 +1,27 @@
 from datetime import datetime
 from models import DemandProspect
+from models import OutreachLog
 
+
+def calculate_lead_score(lead):
+    score = 0
+
+    if lead.email:
+        score += 20
+
+    if lead.opened:
+        score += 20
+
+    if lead.replied:
+        score += 40
+
+    if lead.status == "interested":
+        score += 20
+
+    if lead.estimated_value >= 200:
+        score += 20
+
+    return min(score, 100)
 
 # ---------------------------------------------------------------------------
 # DATE PARSING
