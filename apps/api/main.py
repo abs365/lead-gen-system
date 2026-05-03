@@ -74,7 +74,82 @@ scheduler = BackgroundScheduler()
 
 @app.on_event("startup")
 def start_scheduler():
-    # Outreach runs once per day
+
+    # --- FULL PIPELINE (daily at 6am) ---
+    def run_full_pipeline():
+        db = SessionLocal()
+        try:
+            print("[Pipeline] Starting full automated pipeline...")
+
+            # Step 1 — Collect FSA demand
+            from services.food_standards import fetch_london_establishments
+            from models import DemandProspect
+            results = fetch_london_establishments()
+            added = 0
+            for r in results:
+                existing = db.query(DemandProspect).filter(
+                    DemandProspect.fsa_establishment_id == str(r.get("fsa_id", ""))
+                ).first()
+                if not existing and r.get("name"):
+                    prospect = DemandProspect(
+                        name=r.get("name"),
+                        category=r.get("category"),
+                        address=r.get("address"),
+                        city=r.get("city", "London"),
+                        borough=r.get("borough"),
+                        postcode=r.get("postcode"),
+                        fsa_establishment_id=str(r.get("fsa_id", "")),
+                        fsa_rating=r.get("rating"),
+                        last_inspection_date=r.get("inspection_date"),
+                        source="fsa",
+                        status="new",
+                    )
+                    db.add(prospect)
+                    added += 1
+            db.commit()
+            print(f"[Pipeline] FSA collected: {added} new prospects")
+
+            # Step 2 — Collect Companies House
+            from services.companies_house import collect_companies_house
+            ch_result = collect_companies_house(db)
+            print(f"[Pipeline] Companies House: {ch_result}")
+
+            # Step 3 — Score demand
+            from services.scoring import calculate_demand_score, assign_high_priority_flags
+            prospects = db.query(DemandProspect).all()
+            for p in prospects:
+                raw = p.score_breakdown or ""
+                signals = [s.strip() for s in raw.split(",") if s.strip()]
+                score, breakdown = calculate_demand_score(
+                    signals=signals,
+                    source=p.source or "fsa",
+                    inspection_date=p.last_inspection_date
+                )
+                p.demand_score = score
+                p.score_breakdown = breakdown
+                p.is_high_priority = 1 if score >= 70 else 0
+            assign_high_priority_flags(db)
+            db.commit()
+            print(f"[Pipeline] Scoring complete")
+
+            # Step 4 — Run matching engine
+            from services.matching_engine import run_matching_engine
+            matches_created = run_matching_engine(db)
+            print(f"[Pipeline] Matches created: {matches_created}")
+
+            # Step 5 — Send match outreach
+            run_outreach_job()
+            print(f"[Pipeline] Outreach complete")
+
+        except Exception as e:
+            print(f"[Pipeline] ERROR: {e}")
+        finally:
+            db.close()
+
+    # Full pipeline runs daily at 6am
+    scheduler.add_job(run_full_pipeline, "cron", hour=6, minute=0)
+
+    # Outreach runs every 24 hours
     scheduler.add_job(run_outreach_job, "interval", hours=24)
 
     # Reply detection every 10 minutes
