@@ -252,3 +252,9 @@ def run_matching_engine_endpoint(db: Session = Depends(get_db)):
     from services.matching_engine import run_matching_engine
     result = run_matching_engine(db)
     return result
+
+@router.get("/enrich-demand")
+def enrich_demand_endpoint(db: Session = Depends(get_db)):
+    from services.demand_enrichment import enrich_demand_prospects
+    result = enrich_demand_prospects(db, limit=25)
+    return result
