@@ -1,4 +1,3 @@
-cat > /home/claude/navigation_new.tsx << 'EOF'
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
