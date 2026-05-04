@@ -258,3 +258,9 @@ def enrich_demand_endpoint(db: Session = Depends(get_db)):
     from services.demand_enrichment import enrich_demand_prospects
     result = enrich_demand_prospects(db, limit=25)
     return result
+
+@router.get("/planning-data")
+def collect_planning_data_endpoint(db: Session = Depends(get_db)):
+    from services.planning_data import collect_planning_applications
+    result = collect_planning_applications(db, days_back=30, limit=100)
+    return result
