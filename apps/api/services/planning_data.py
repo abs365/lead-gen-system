@@ -12,7 +12,6 @@ PLUMBING_KEYWORDS = [
     "grease trap", "sink", "hot water", "boiler"
 ]
 
-# London boroughs with open Socrata APIs
 BOROUGH_APIS = [
     {
         "name": "Camden",
@@ -32,7 +31,7 @@ def _is_plumbing_relevant(description: str) -> tuple:
     score = min(len(matched) * 20, 100)
     return len(matched) > 0, score, matched
 
-def collect_planning_applications(db: Session, days_back: int = 30, limit: int = 100) -> dict:
+def collect_planning_applications(db: Session, days_back: int = 90, limit: int = 200) -> dict:
     since_date = (datetime.utcnow() - timedelta(days=days_back)).strftime("%Y-%m-%dT00:00:00.000")
     total_collected = 0
     total_added = 0
@@ -41,24 +40,39 @@ def collect_planning_applications(db: Session, days_back: int = 30, limit: int =
 
     for borough in BOROUGH_APIS:
         try:
-            params = {
-                "$limit": limit,
-                "$where": f"{borough['date_field']} >= '{since_date}'",
-                "$order": f"{borough['date_field']} DESC",
-            }
+            offset = 0
+            page_size = 100
+            records = []
 
-            response = requests.get(
-                borough["url"],
-                params=params,
-                timeout=20,
-                headers={"User-Agent": "LeadGenSystem/1.0"}
-            )
+            while True:
+                params = {
+                    "$limit": page_size,
+                    "$offset": offset,
+                    "$where": f"{borough['date_field']} >= '{since_date}'",
+                    "$order": f"{borough['date_field']} DESC",
+                }
 
-            if response.status_code != 200:
-                errors.append(f"{borough['name']}: HTTP {response.status_code}")
-                continue
+                response = requests.get(
+                    borough["url"],
+                    params=params,
+                    timeout=20,
+                    headers={"User-Agent": "LeadGenSystem/1.0"}
+                )
 
-            records = response.json()
+                if response.status_code != 200:
+                    errors.append(f"{borough['name']}: HTTP {response.status_code}")
+                    break
+
+                page = response.json()
+                if not page:
+                    break
+
+                records.extend(page)
+                offset += page_size
+
+                if len(page) < page_size or len(records) >= limit:
+                    break
+
             total_collected += len(records)
 
             for record in records:
