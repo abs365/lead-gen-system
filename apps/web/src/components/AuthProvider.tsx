@@ -3,7 +3,7 @@
 import { useEffect, useState, createContext, useContext } from "react";
 import { useRouter, usePathname } from "next/navigation";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+const API = "/api/proxy";
 
 const AuthContext = createContext<any>(null);
 

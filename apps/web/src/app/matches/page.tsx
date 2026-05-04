@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import Navigation from "@/components/Navigation";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
-const API_KEY = "12B295n305T286s113a151e24";
+const API = "/api/proxy";
 
 export default function MatchesPage() {
   const [matches, setMatches] = useState<any[]>([]);
@@ -12,7 +11,7 @@ export default function MatchesPage() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    fetch(`${API}/analytics/matches`, { headers: { "X-API-KEY": API_KEY } })
+    fetch(`${API}/analytics/matches`)
       .then(r => r.json())
       .then(data => { setMatches(Array.isArray(data) ? data : []); setLoading(false); })
       .catch(() => setLoading(false));

@@ -3,8 +3,7 @@
 import { useState } from "react";
 import Navigation from "@/components/Navigation";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
-const API_KEY = "12B295n305T286s113a151e24";
+const API = "/api/proxy";
 
 type LogEntry = { time: string; message: string; ok: boolean };
 
@@ -22,9 +21,9 @@ export default function OpsPage() {
     setLoading(label);
     try {
       const res = await fetch(`${API}${path}`, {
-        method,
-        headers: { "X-API-KEY": API_KEY },
-      });
+  method,
+  headers: { "Content-Type": "application/json" },
+});
       const data = await res.json();
       log(`${label}: ${JSON.stringify(data)}`, res.ok);
       return data;

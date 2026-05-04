@@ -7,8 +7,7 @@ import {
   ResponsiveContainer, Cell,
 } from "recharts";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
-const API_KEY = "12B295n305T286s113a151e24";
+const API = "/api/proxy";
 
 export default function Dashboard() {
   const [pipeline, setPipeline] = useState<any>(null);
@@ -36,7 +35,7 @@ export default function Dashboard() {
   async function sendOutreach() {
     setSending(true);
     try {
-      await fetch(`${API}/automation/send-outreach`, { method: "GET", headers: { "X-API-KEY": API_KEY } });
+      await fetch(`${API}/automation/send-outreach`, { method: "GET" });
       await loadPipeline();
     } finally { setSending(false); }
   }
@@ -44,7 +43,7 @@ export default function Dashboard() {
   async function sendMatchOutreach() {
     setSending(true);
     try {
-      await fetch(`${API}/automation/send-match-outreach`, { method: "POST", headers: { "X-API-KEY": API_KEY } });
+      await fetch(`${API}/automation/send-match-outreach`, { method: "POST" });
       await loadMatches();
     } finally { setSending(false); }
   }

@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import Navigation from "@/components/Navigation";
 import { useAuth } from "@/components/AuthProvider";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
-const API_KEY = "12B295n305T286s113a151e24";
+const API = "/api/proxy";
 
 export default function AdminPage() {
   const { user } = useAuth();
@@ -18,9 +17,7 @@ export default function AdminPage() {
   const [message, setMessage] = useState("");
 
   async function loadUsers() {
-    const res = await fetch(`${API}/auth/users`, {
-      headers: { "X-API-KEY": API_KEY },
-    });
+    const res = await fetch(`${API}/auth/users`);
     const data = await res.json();
     setUsers(Array.isArray(data) ? data : []);
     setLoading(false);
@@ -31,8 +28,8 @@ export default function AdminPage() {
   async function createUser(e: React.FormEvent) {
     e.preventDefault();
     const res = await fetch(`${API}/auth/users`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-API-KEY": API_KEY },
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: newEmail, password: newPassword, name: newName, role: newRole }),
     });
     const data = await res.json();
@@ -46,13 +43,13 @@ export default function AdminPage() {
   }
 
   async function toggleUser(id: number) {
-    await fetch(`${API}/auth/users/${id}/toggle`, { method: "POST", headers: { "X-API-KEY": API_KEY } });
+   await fetch(`${API}/auth/users/${id}/toggle`, { method: "POST" });
     loadUsers();
   }
 
   async function deleteUser(id: number) {
     if (!confirm("Delete this user?")) return;
-    await fetch(`${API}/auth/users/${id}`, { method: "DELETE", headers: { "X-API-KEY": API_KEY } });
+    await fetch(`${API}/auth/users/${id}`, { method: "DELETE" });
     loadUsers();
   }
 

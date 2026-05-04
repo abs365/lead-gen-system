@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import Navigation from "@/components/Navigation";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
-const API_KEY = "12B295n305T286s113a151e24";
+const API = "/api/proxy";
 
 export default function PlumbersPage() {
   const [plumbers, setPlumbers] = useState<any[]>([]);
