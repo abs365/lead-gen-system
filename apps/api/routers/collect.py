@@ -26,7 +26,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(
     prefix="/collect",
     tags=["collect"],
-    dependencies=[Depends(require_api_key)]
 )
 
 # --------------------------------------------------------------------------- #

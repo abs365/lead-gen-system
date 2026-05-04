@@ -167,3 +167,22 @@ def get_demand_prospects(db: Session = Depends(get_db)):
         }
         for p in prospects
     ]
+
+@router.get("/plumbers")
+def get_plumbers_public(db: Session = Depends(get_db)):
+    from models import Plumber
+    plumbers = db.query(Plumber).order_by(Plumber.name).all()
+    return [
+        {
+            "id": p.id,
+            "name": p.name,
+            "email": p.email,
+            "phone": p.phone,
+            "address": p.address,
+            "city": p.city,
+            "website": p.website,
+            "is_commercial": p.is_commercial,
+            "category": p.category,
+        }
+        for p in plumbers
+    ]

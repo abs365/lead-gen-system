@@ -12,7 +12,7 @@ export default function PlumbersPage() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    fetch(`${API}/collect/plumbers`, { headers: { "X-API-KEY": API_KEY } })
+    fetch(`${API}/analytics/plumbers`)
       .then(r => r.json())
       .then(data => { setPlumbers(Array.isArray(data) ? data : []); setLoading(false); })
       .catch(() => setLoading(false));
