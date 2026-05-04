@@ -82,7 +82,7 @@ def start_scheduler():
         try:
             print("[Pipeline] Starting full automated pipeline...")
 
-            # Step 1 — Collect FSA demand
+            # Step 1 - Collect FSA demand
             from services.food_standards import fetch_london_establishments
             from models import DemandProspect
             results = fetch_london_establishments()
@@ -110,12 +110,12 @@ def start_scheduler():
             db.commit()
             print(f"[Pipeline] FSA collected: {added} new prospects")
 
-            # Step 2 — Collect Companies House
+            # Step 2 - Collect Companies House
             from services.companies_house import collect_companies_house
             ch_result = collect_companies_house(db)
             print(f"[Pipeline] Companies House: {ch_result}")
 
-            # Step 3 — Score demand
+            # Step 3 - Score demand
             from services.scoring import calculate_demand_score, assign_high_priority_flags
             prospects = db.query(DemandProspect).all()
             for p in prospects:
@@ -133,12 +133,12 @@ def start_scheduler():
             db.commit()
             print(f"[Pipeline] Scoring complete")
 
-            # Step 4 — Run matching engine
+            # Step 4 - Run matching engine
             from services.matching_engine import run_matching_engine
             matches_created = run_matching_engine(db)
             print(f"[Pipeline] Matches created: {matches_created}")
 
-            # Step 5 — Send match outreach
+            # Step 5 - Send match outreach
             run_outreach_job()
             print(f"[Pipeline] Outreach complete")
 
@@ -147,8 +147,20 @@ def start_scheduler():
         finally:
             db.close()
 
+    # --- PLANNING DATA COLLECTION (daily at 7am) ---
+    def run_planning_collection():
+        from services.planning_data import collect_planning_applications
+        db2 = SessionLocal()
+        try:
+            collect_planning_applications(db2, days_back=2, limit=100)
+        finally:
+            db2.close()
+
     # Full pipeline runs daily at 6am
     scheduler.add_job(run_full_pipeline, "cron", hour=6, minute=0)
+
+    # Planning data runs daily at 7am
+    scheduler.add_job(run_planning_collection, "cron", hour=7, minute=0)
 
     # Outreach runs every 24 hours
     scheduler.add_job(run_outreach_job, "interval", hours=24)
