@@ -1,45 +1,31 @@
 import requests
 from datetime import datetime
 from sqlalchemy.orm import Session
-from config import settings
 from models import DemandProspect
+import os
+
+COMPANIES_HOUSE_API_KEY = os.getenv("COMPANIES_HOUSE_API_KEY")
 
 CITIES = [
-    "London",
-    "Birmingham",
-    "Manchester",
-    "Bristol",
-    "Leicester",
-    "Sheffield",
-    "Newcastle",
-    "Nottingham",
-    "Leeds",
-    "Liverpool",
-    "Oldham",
-    "Bolton",
-    "Coventry",
-    "Solihull",
-    "Stockport",
-    "Wolverhampton",
-    "Salford",
+    "London", "Birmingham", "Manchester", "Bristol", "Leicester",
+    "Sheffield", "Newcastle", "Nottingham", "Leeds", "Liverpool",
+    "Oldham", "Bolton", "Coventry", "Solihull", "Stockport",
+    "Wolverhampton", "Salford",
 ]
 
 BUSINESS_TYPES = [
-    "restaurant",
-    "cafe",
-    "takeaway",
-    "hotel",
-    "property maintenance",
-    "facilities management",
-    "landlord",
+    "restaurant", "cafe", "takeaway", "hotel",
+    "property maintenance", "facilities management", "landlord",
 ]
 
-def _build_search_terms(cities: list, business_types: list) -> list:
+
+def _build_search_terms():
     terms = []
-    for city in cities:
-        for btype in business_types:
-            terms.append(f"{btype} {city}")
+    for city in CITIES:
+        for btype in BUSINESS_TYPES:
+            terms.append((f"{btype} {city}", city))
     return terms
+
 
 def _score_company(title: str, description: str) -> int:
     text = f"{title} {description}".lower()
@@ -53,6 +39,7 @@ def _score_company(title: str, description: str) -> int:
     if "facilities" in text: score += 25
     return min(score, 100)
 
+
 def _detect_city(address: str, title: str) -> str:
     text = f"{address} {title}".lower()
     for city in CITIES:
@@ -60,5 +47,78 @@ def _detect_city(address: str, title: str) -> str:
             return city
     return "Unknown"
 
+
 def collect_companies_house(db: Session, max_per_term: int = 10) -> dict:
-    if not settings.COMPANIES_HOUSE_API_KEY:
+    if not COMPANIES_HOUSE_API_KEY:
+        return {
+            "success": False,
+            "message": "Missing COMPANIES_HOUSE_API_KEY",
+            "inserted": 0,
+            "skipped": 0,
+        }
+
+    inserted = 0
+    skipped = 0
+    search_terms = _build_search_terms()
+
+    for term, city_hint in search_terms:
+        try:
+            response = requests.get(
+                "https://api.company-information.service.gov.uk/search/companies",
+                auth=(COMPANIES_HOUSE_API_KEY, ""),
+                params={"q": term, "items_per_page": max_per_term},
+                timeout=30,
+            )
+        except Exception:
+            continue
+
+        if response.status_code != 200:
+            continue
+
+        items = response.json().get("items", [])
+
+        for item in items:
+            company_number = item.get("company_number")
+            title = item.get("title")
+            address = item.get("address_snippet", "")
+            description = item.get("description", "")
+
+            if not company_number or not title:
+                skipped += 1
+                continue
+
+            existing = db.query(DemandProspect).filter(
+                DemandProspect.source == "companies_house",
+                DemandProspect.source_record_id == company_number,
+            ).first()
+            if existing:
+                skipped += 1
+                continue
+
+            city = _detect_city(address, title) if _detect_city(address, title) != "Unknown" else city_hint
+            score = _score_company(title, description)
+
+            prospect = DemandProspect(
+                name=title,
+                category="companies_house",
+                address=address,
+                city=city,
+                source="companies_house",
+                source_record_id=company_number,
+                demand_score=score,
+                score_breakdown=f"companies_house_search:{term}",
+                status="new",
+                is_high_priority=1 if score >= 60 else 0,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            )
+            db.add(prospect)
+            inserted += 1
+
+    db.commit()
+    return {
+        "success": True,
+        "source": "companies_house",
+        "inserted": inserted,
+        "skipped": skipped,
+    }
