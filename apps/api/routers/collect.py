@@ -277,6 +277,7 @@ def collect_plumbers_endpoint(db: Session = Depends(get_db)):
     DETAILS_URL = "https://maps.googleapis.com/maps/api/place/details/json"
 
     SEARCH_TERMS = [
+        # London
         "commercial plumber London",
         "plumbing contractor London",
         "gas engineer London",
@@ -288,10 +289,33 @@ def collect_plumbers_endpoint(db: Session = Depends(get_db)):
         "plumbing services Hackney",
         "plumbing services Southwark",
         "plumbing services Lambeth",
-        "plumbing services Islington",
         "plumbing services Tower Hamlets",
-        "plumbing services Wandsworth",
-        "plumbing services Lewisham",
+        # Birmingham
+        "commercial plumber Birmingham",
+        "plumbing contractor Birmingham",
+        "gas engineer Birmingham",
+        "emergency plumber Birmingham",
+        "plumbing services Birmingham city centre",
+        "plumber Solihull",
+        "plumber Wolverhampton",
+        "plumber Coventry",
+        # Manchester
+        "commercial plumber Manchester",
+        "plumbing contractor Manchester",
+        "gas engineer Manchester",
+        "emergency plumber Manchester",
+        "plumbing services Salford",
+        "plumber Stockport",
+        "plumber Bolton",
+        "plumber Oldham",
+        # Other major cities
+        "commercial plumber Leeds",
+        "commercial plumber Sheffield",
+        "commercial plumber Bristol",
+        "commercial plumber Liverpool",
+        "commercial plumber Newcastle",
+        "commercial plumber Nottingham",
+        "commercial plumber Leicester",
     ]
 
     added = 0
@@ -316,7 +340,7 @@ def collect_plumbers_endpoint(db: Session = Depends(get_db)):
                     skipped += 1
                     continue
 
-                if "canada" in address.lower() or "australia" in address.lower():
+                if "canada" in address.lower() or "australia" in address.lower() or "united states" in address.lower():
                     skipped += 1
                     continue
 
@@ -349,10 +373,20 @@ def collect_plumbers_endpoint(db: Session = Depends(get_db)):
                     address, re.IGNORECASE
                 )
 
+                # Extract city from address
+                city = "London"
+                for c in ["Birmingham", "Manchester", "Leeds", "Sheffield",
+                          "Bristol", "Liverpool", "Newcastle", "Nottingham",
+                          "Leicester", "Coventry", "Wolverhampton", "Solihull",
+                          "Salford", "Stockport", "Bolton", "Oldham"]:
+                    if c.lower() in address.lower():
+                        city = c
+                        break
+
                 plumber = Plumber(
                     name=name,
                     address=address,
-                    city="London",
+                    city=city,
                     postcode=postcode_match.group(1).upper() if postcode_match else None,
                     lat=location.get("lat"),
                     lng=location.get("lng"),
@@ -377,3 +411,43 @@ def collect_plumbers_endpoint(db: Session = Depends(get_db)):
         "added": added,
         "skipped": skipped,
     }
+
+@router.get("/collect-demand-all-cities")
+def collect_demand_all_cities(db: Session = Depends(get_db)):
+    from services.food_standards import fetch_all_cities
+    from models import DemandProspect
+    results = fetch_all_cities()
+    added = 0
+    skipped = 0
+    for r in results:
+        try:
+            existing = db.query(DemandProspect).filter(
+                DemandProspect.fsa_establishment_id == str(r.get("fsa_establishment_id", ""))
+            ).first()
+            if existing:
+                skipped += 1
+                continue
+            if not r.get("name"):
+                skipped += 1
+                continue
+            prospect = DemandProspect(
+                name=r.get("name"),
+                category=r.get("category"),
+                address=r.get("address"),
+                city=r.get("city", "London"),
+                borough=r.get("borough"),
+                postcode=r.get("postcode"),
+                fsa_establishment_id=str(r.get("fsa_establishment_id", "")),
+                fsa_rating=r.get("fsa_rating"),
+                last_inspection_date=None,
+                source="fsa",
+                status="new",
+            )
+            db.add(prospect)
+            db.commit()
+            added += 1
+        except Exception:
+            db.rollback()
+            skipped += 1
+            continue
+    return {"success": True, "added": added, "skipped": skipped}

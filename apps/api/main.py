@@ -87,9 +87,9 @@ def start_scheduler():
             print("[Pipeline] Starting full automated pipeline...")
 
             # Step 1 - Collect FSA demand
-            from services.food_standards import fetch_london_establishments
+            from services.food_standards import fetch_all_cities
             from models import DemandProspect
-            results = fetch_london_establishments()
+            results = fetch_all_cities()
             added = 0
             for r in results:
                 existing = db.query(DemandProspect).filter(
