@@ -108,7 +108,7 @@ def collect_companies_house(db: Session, max_per_term: int = 10) -> dict:
                 demand_score=score,
                 score_breakdown=f"companies_house_search:{term}",
                 status="new",
-                is_high_priority=1 if score >= 60 else 0,
+                is_high_priority=1 if score >= 25 else 0,
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow(),
             )

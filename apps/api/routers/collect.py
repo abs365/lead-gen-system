@@ -457,3 +457,17 @@ def collect_companies_house_endpoint(db: Session = Depends(get_db)):
     from services.companies_house import collect_companies_house
     result = collect_companies_house(db, max_per_term=10)
     return result
+
+@router.get("/fix-companies-house-priority")
+def fix_companies_house_priority(db: Session = Depends(get_db)):
+    from models import DemandProspect
+    prospects = db.query(DemandProspect).filter(
+        DemandProspect.source == "companies_house"
+    ).all()
+    updated = 0
+    for p in prospects:
+        if (p.demand_score or 0) >= 25:
+            p.is_high_priority = 1
+            updated += 1
+    db.commit()
+    return {"success": True, "updated": updated}

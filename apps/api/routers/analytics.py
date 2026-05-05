@@ -145,11 +145,12 @@ def clean_bad_leads(db: Session = Depends(get_db)):
     return {"deleted": deleted}
 
 @router.get("/demand-prospects")
-def get_demand_prospects(db: Session = Depends(get_db)):
+def get_demand_prospects(db: Session = Depends(get_db), limit: int = 500, source: str = None):
     from models import DemandProspect
-    prospects = db.query(DemandProspect).order_by(
-        DemandProspect.demand_score.desc()
-    ).limit(100).all()
+    query = db.query(DemandProspect).order_by(DemandProspect.demand_score.desc())
+    if source:
+        query = query.filter(DemandProspect.source == source)
+    prospects = query.limit(limit).all()
     return [
         {
             "id": p.id,
