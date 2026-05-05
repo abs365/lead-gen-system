@@ -264,3 +264,116 @@ def collect_planning_data_endpoint(db: Session = Depends(get_db)):
     from services.planning_data import collect_planning_applications
     result = collect_planning_applications(db, days_back=30, limit=100)
     return result
+
+@router.get("/collect-plumbers")
+def collect_plumbers_endpoint(db: Session = Depends(get_db)):
+    import os
+    import httpx
+    import re
+    import time
+
+    GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+    TEXT_SEARCH_URL = "https://maps.googleapis.com/maps/api/place/textsearch/json"
+    DETAILS_URL = "https://maps.googleapis.com/maps/api/place/details/json"
+
+    SEARCH_TERMS = [
+        "commercial plumber London",
+        "plumbing contractor London",
+        "gas engineer London",
+        "heating engineer London",
+        "emergency plumber East London",
+        "emergency plumber South London",
+        "emergency plumber North London",
+        "emergency plumber West London",
+        "plumbing services Hackney",
+        "plumbing services Southwark",
+        "plumbing services Lambeth",
+        "plumbing services Islington",
+        "plumbing services Tower Hamlets",
+        "plumbing services Wandsworth",
+        "plumbing services Lewisham",
+    ]
+
+    added = 0
+    skipped = 0
+
+    for term in SEARCH_TERMS:
+        try:
+            params = {"query": term, "region": "gb", "key": GOOGLE_API_KEY}
+            with httpx.Client(timeout=15.0) as client:
+                resp = client.get(TEXT_SEARCH_URL, params=params)
+                data = resp.json()
+
+            if data.get("status") not in ("OK", "ZERO_RESULTS"):
+                continue
+
+            for place in data.get("results", []):
+                place_id = place.get("place_id")
+                name = place.get("name", "").strip()
+                address = place.get("formatted_address", "")
+
+                if not place_id or not name:
+                    skipped += 1
+                    continue
+
+                if "canada" in address.lower() or "australia" in address.lower():
+                    skipped += 1
+                    continue
+
+                existing = db.query(Plumber).filter(Plumber.place_id == place_id).first()
+                if existing:
+                    skipped += 1
+                    continue
+
+                # Get details
+                phone = None
+                website = None
+                try:
+                    det_params = {
+                        "place_id": place_id,
+                        "fields": "formatted_phone_number,website",
+                        "key": GOOGLE_API_KEY,
+                    }
+                    with httpx.Client(timeout=10.0) as client:
+                        det_resp = client.get(DETAILS_URL, params=det_params)
+                        det_data = det_resp.json().get("result", {})
+                        phone = det_data.get("formatted_phone_number")
+                        website = det_data.get("website")
+                    time.sleep(0.5)
+                except Exception:
+                    pass
+
+                location = place.get("geometry", {}).get("location", {})
+                postcode_match = re.search(
+                    r'\b([A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2})\b',
+                    address, re.IGNORECASE
+                )
+
+                plumber = Plumber(
+                    name=name,
+                    address=address,
+                    city="London",
+                    postcode=postcode_match.group(1).upper() if postcode_match else None,
+                    lat=location.get("lat"),
+                    lng=location.get("lng"),
+                    place_id=place_id,
+                    source="google_places",
+                    category="plumber",
+                    website=website,
+                    phone=phone,
+                    is_commercial=1,
+                )
+                db.add(plumber)
+                added += 1
+
+            db.commit()
+            time.sleep(1)
+
+        except Exception as e:
+            continue
+
+    return {
+        "success": True,
+        "added": added,
+        "skipped": skipped,
+    }

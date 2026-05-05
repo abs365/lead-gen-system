@@ -16,7 +16,21 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
-from config import get_settings
+import os
+
+class _Settings:
+    google_api_key = os.getenv("GOOGLE_API_KEY")
+    max_places_pages = 3
+
+def get_settings():
+    return _Settings()
+
+class _Settings:
+    google_api_key = os.getenv("GOOGLE_API_KEY")
+    max_places_pages = 3
+
+def get_settings():
+    return _Settings()
 
 logger = logging.getLogger(__name__)
 
