@@ -451,3 +451,9 @@ def collect_demand_all_cities(db: Session = Depends(get_db)):
             skipped += 1
             continue
     return {"success": True, "added": added, "skipped": skipped}
+
+@router.get("/collect-companies-house")
+def collect_companies_house_endpoint(db: Session = Depends(get_db)):
+    from services.companies_house import collect_companies_house
+    result = collect_companies_house(db, max_per_term=10)
+    return result
