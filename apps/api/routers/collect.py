@@ -471,3 +471,9 @@ def fix_companies_house_priority(db: Session = Depends(get_db)):
             updated += 1
     db.commit()
     return {"success": True, "updated": updated}
+
+@router.get("/enrich-plumbers")
+def enrich_plumbers_endpoint(db: Session = Depends(get_db)):
+    from services.plumber_enrichment import enrich_plumbers
+    result = enrich_plumbers(db, limit=50)
+    return result
