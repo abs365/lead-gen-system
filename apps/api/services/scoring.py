@@ -118,18 +118,15 @@ def calculate_demand_score(signals, source, inspection_date=None):
 # ---------------------------------------------------------------------------
 
 def assign_high_priority_flags(db):
-    prospects = db.query(DemandProspect)\
-        .order_by(DemandProspect.demand_score.desc())\
-        .all()
-
+    prospects = db.query(DemandProspect).all()
     if not prospects:
         return
-
-    total = len(prospects)
-    cutoff = max(1, int(total * 0.1))
-
-    for i, p in enumerate(prospects):
+    for p in prospects:
         if hasattr(p, "is_high_priority"):
-            p.is_high_priority = 1 if i < cutoff else 0
-
+            score = p.demand_score or 0
+            source = p.source or ""
+            if source == "companies_house":
+                p.is_high_priority = 1 if score >= 15 else 0
+            else:
+                p.is_high_priority = 1 if score >= 50 else 0
     db.commit()
