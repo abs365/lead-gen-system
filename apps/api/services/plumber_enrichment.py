@@ -10,13 +10,23 @@ SKIP_DOMAINS = [
     "sentry.io", "wix.com", "wordpress.com", "squarespace.com",
     "googletagmanager", "schema.org", "example.com", "gmail.com",
     "yahoo.com", "hotmail.com", "w3.org", "jquery.com",
+    "amazonaws.com", "cloudflare.com", "google.com", "facebook.com",
+    "twitter.com", "instagram.com", "linkedin.com", "apple.com",
+]
+
+SKIP_PREFIXES = [
+    "noreply", "no-reply", "donotreply", "support", "admin",
+    "webmaster", "postmaster", "mailer", "bounce", "newsletter",
+    "notifications", "notification", "alerts", "alert", "news",
+    "marketing", "sales@", "enquiries@", "enquiry@",
 ]
 
 def is_valid_email(email: str) -> bool:
     email = email.lower()
     if any(skip in email for skip in SKIP_DOMAINS):
         return False
-    if any(x in email for x in ["noreply", "no-reply", "donotreply", "support@", "info@sentry"]):
+    prefix = email.split("@")[0]
+    if any(prefix.startswith(s.rstrip("@")) for s in SKIP_PREFIXES):
         return False
     parts = email.split("@")
     if len(parts) != 2:
@@ -24,8 +34,11 @@ def is_valid_email(email: str) -> bool:
     domain = parts[1]
     if "." not in domain:
         return False
+    # Must have a real TLD
+    tld = domain.split(".")[-1]
+    if len(tld) < 2 or len(tld) > 6:
+        return False
     return True
-
 def scrape_email_from_website(url: str) -> str | None:
     if not url:
         return None
