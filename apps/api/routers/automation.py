@@ -90,7 +90,14 @@ def send_match_outreach():
             try:
                 subject = f"New plumbing job opportunity — {demand.city or 'London'}"
 
-                body = f"<p>Hi {plumber.name or 'there'},</p><p>We found a business in {demand.city or 'your area'} that likely needs commercial plumbing support:</p><p><strong>{demand.name}</strong> ({demand.category or 'Business'})<br>Location: {demand.address or demand.city or 'London'}</p><p>Reply <strong>YES</strong> and we will send the full contact details over.</p><p>— MeritBold Lead Generation<br>generalenquiry@meritbold.com</p><br><p>---</p><p>To stop receiving these emails, reply with the word <strong>STOP</strong>.</p><p style='font-size:11px;color:#999;'>MeritBold, United Kingdom. Sent under UK PECR legitimate interest provisions.</p>"
+                from services.claude_outreach import build_email_body
+                body = build_email_body(
+                    plumber_name=plumber.name,
+                    prospect_name=demand.name,
+                    prospect_category=demand.category,
+                    prospect_city=demand.city,
+                    prospect_address=demand.address,
+                )
 
                 send_email(
                     to_email=plumber.email,
@@ -100,6 +107,16 @@ def send_match_outreach():
 
                 match.outreach_sent = 1
                 match.outreach_sent_at = datetime.utcnow()
+
+                log = OutreachLog(
+                    plumber_id=plumber.id,
+                    email=plumber.email,
+                    subject=subject,
+                    status="contacted",
+                    sent_at=datetime.utcnow(),
+                    follow_up_step=0,
+                )
+                db.add(log)
                 sent += 1
 
             except Exception as e:
@@ -280,7 +297,14 @@ def follow_up_hot_leads():
 def send_test_email():
     subject = "New plumbing job opportunity — London"
 
-    body = "<p>Hi Test Plumber,</p><p>We found a business in London that likely needs commercial plumbing support:</p><p><strong>The Grand Hotel London</strong> (Hotel)<br>Location: 123 Oxford Street, London, W1D 1BS</p><p>Reply <strong>YES</strong> and we will send the full contact details over.</p><p>— MeritBold Lead Generation<br>generalenquiry@meritbold.com</p><br><p>---</p><p>To stop receiving these emails, reply with the word <strong>STOP</strong>.</p><p style='font-size:11px;color:#999;'>MeritBold, United Kingdom. Sent under UK PECR legitimate interest provisions.</p>"
+    from services.claude_outreach import build_email_body
+    body = build_email_body(
+        plumber_name="Core Plumbing & Heating Solutions Ltd",
+        prospect_name="The Grand Hotel London",
+        prospect_category="hotel",
+        prospect_city="London",
+        prospect_address="123 Oxford Street, London, W1D 1BS",
+    )
 
     send_email(
         to_email="blue2gtv@gmail.com",
