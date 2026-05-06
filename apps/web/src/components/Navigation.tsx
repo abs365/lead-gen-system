@@ -4,11 +4,12 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 
 const LINKS = [
-  { href: "/",         label: "Dashboard" },
-  { href: "/plumbers", label: "Plumbers" },
-  { href: "/demand",   label: "Demand" },
-  { href: "/matches",  label: "Matches" },
-  { href: "/ops",      label: "Ops" },
+  { href: "/",           label: "Dashboard" },
+  { href: "/plumbers",   label: "Plumbers" },
+  { href: "/demand",     label: "Demand" },
+  { href: "/matches",    label: "Matches" },
+  { href: "/ops",        label: "Ops" },
+  { href: "/subscribe",  label: "Subscribe" },
 ];
 
 export default function Navigation() {
