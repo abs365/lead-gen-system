@@ -92,21 +92,7 @@ def send_match_outreach():
             try:
                 subject = f"New plumbing job opportunity — {demand.city or 'London'}"
 
-                body = f"""
-                <p>Hi {plumber.name or 'there'},</p>
-                <p>We found a business in {demand.city or 'your area'} that likely needs commercial plumbing support:</p>
-                <p><strong>{demand.name}</strong> ({demand.category or 'Business'})<br>
-                Location: {demand.address or demand.city or 'London'}</p>
-                <p>Reply <strong>YES</strong> and we will send the full contact details over.</p>
-                <p>— MeritBold Lead Generation<br>
-                generalenquiry@meritbold.com</p>
-                <hr>
-                <p style="font-size:11px;color:#999;">
-                You are receiving this because your business offers plumbing services in {demand.city or 'your area'}.
-                This is a legitimate business opportunity email sent under UK PECR legitimate interest provisions.
-                To unsubscribe and stop receiving emails, reply with the word STOP and we will remove you immediately.
-                MeritBold, United Kingdom.
-                </p>
+                body = f"<p>Hi {plumber.name or 'there'},</p><p>We found a business in {demand.city or 'your area'} that likely needs commercial plumbing support:</p><p><strong>{demand.name}</strong> ({demand.category or 'Business'})<br>Location: {demand.address or demand.city or 'London'}</p><p>Reply <strong>YES</strong> and we will send the full contact details over.</p><p>— MeritBold Lead Generation<br>generalenquiry@meritbold.com</p><hr><p style='font-size:11px;color:#999;'>You are receiving this because your business offers plumbing services in {demand.city or 'your area'}. This is a legitimate business opportunity email sent under UK PECR legitimate interest provisions. To unsubscribe, reply STOP and we will remove you immediately. MeritBold, United Kingdom.</p>"
                 """
 
                 send_email(
@@ -293,20 +279,8 @@ def follow_up_hot_leads():
 
                 subject = f"Next steps — {lead.subject}"
 
-                body = f"""
-                <p>Hi {lead.email.split('@')[0]},</p>
-                <p>Great — thanks for your reply.</p>
-                <p>We currently have <strong>live plumbing job opportunities</strong> in your area.</p>
-                <p>Reply with your availability or preferred contact number and we will connect you directly.</p>
-                <p>— MeritBold Lead Generation<br>
-                generalenquiry@meritbold.com</p>
-                <hr>
-                <p style="font-size:11px;color:#999;">
-                To unsubscribe, reply with STOP and we will remove you immediately.
-                MeritBold, United Kingdom.
-                </p>
-                """
-
+                body = f"<p>Hi {plumber.name or 'there'},</p><p>We found a business in {demand.city or 'your area'} that likely needs commercial plumbing support:</p><p><strong>{demand.name}</strong> ({demand.category or 'Business'})<br>Location: {demand.address or demand.city or 'London'}</p><p>Reply <strong>YES</strong> and we will send the full contact details over.</p><p>— MeritBold Lead Generation<br>generalenquiry@meritbold.com</p><hr><p style='font-size:11px;color:#999;'>You are receiving this because your business offers plumbing services in {demand.city or 'your area'}. This is a legitimate business opportunity email sent under UK PECR legitimate interest provisions. To unsubscribe, reply STOP and we will remove you immediately. MeritBold, United Kingdom.</p>"
+              
                 send_email(
                     to_email=lead.email,
                     subject=subject,
@@ -336,22 +310,7 @@ def send_test_email():
     
     subject = "New plumbing job opportunity — London"
 
-    body = """
-    <p>Hi Test Plumber,</p>
-    <p>We found a business in London that likely needs commercial plumbing support:</p>
-    <p><strong>The Grand Hotel London</strong> (Hotel)<br>
-    Location: 123 Oxford Street, London, W1D 1BS</p>
-    <p>Reply <strong>YES</strong> and we will send the full contact details over.</p>
-    <p>— MeritBold Lead Generation<br>
-    generalenquiry@meritbold.com</p>
-    <hr>
-    <p style="font-size:11px;color:#999;">
-    You are receiving this because your business offers plumbing services in London.
-    This is a legitimate business opportunity email sent under UK PECR legitimate interest provisions.
-    To unsubscribe and stop receiving emails, reply with the word STOP and we will remove you immediately.
-    MeritBold, United Kingdom.
-    </p>
-    """
+    body = f"<p>Hi {plumber.name or 'there'},</p><p>We found a business in {demand.city or 'your area'} that likely needs commercial plumbing support:</p><p><strong>{demand.name}</strong> ({demand.category or 'Business'})<br>Location: {demand.address or demand.city or 'London'}</p><p>Reply <strong>YES</strong> and we will send the full contact details over.</p><p>— MeritBold Lead Generation<br>generalenquiry@meritbold.com</p><hr><p style='font-size:11px;color:#999;'>You are receiving this because your business offers plumbing services in {demand.city or 'your area'}. This is a legitimate business opportunity email sent under UK PECR legitimate interest provisions. To unsubscribe, reply STOP and we will remove you immediately. MeritBold, United Kingdom.</p>"
 
     send_email(
         to_email="blue2gtv@gmail.com",
