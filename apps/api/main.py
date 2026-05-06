@@ -7,7 +7,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from database import Base, engine, SessionLocal
 from models import OutreachLog
 
-from routers import collect, data, automation, analytics, replies, opportunities, auth
+from routers import collect, data, automation, analytics, replies, opportunities, auth, voice
 from routers.automation import run_outreach_job  # scheduler-safe function
 from services.reply_detector import detect_gmail_replies
 from services.reply_followup import send_reply_followups
@@ -42,6 +42,7 @@ app.include_router(analytics.router)
 app.include_router(replies.router)
 app.include_router(opportunities.router)
 app.include_router(auth.router)
+app.include_router(voice.router)
 
 # ROOT
 @app.get("/")
