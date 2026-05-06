@@ -8,17 +8,15 @@ from database import Base, engine, SessionLocal
 from models import OutreachLog
 
 from routers import collect, data, automation, analytics, replies, opportunities, auth, voice, stripe_router
-routers.automation import run_outreach_job  # scheduler-safe function
+from routers.automation import run_outreach_job
 from services.reply_detector import detect_gmail_replies
 from services.reply_followup import send_reply_followups
 from services.deal_detector import detect_and_close_deals
-
 
 print("DB URL:", os.getenv("DATABASE_URL"))
 
 app = FastAPI(title="Lead Generation System")
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -31,12 +29,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# DATABASE
 Base.metadata.create_all(bind=engine)
 
-# ROUTERS
 app.include_router(collect.router)
-app.include_router(stripe_router.router)
 app.include_router(data.router)
 app.include_router(automation.router)
 app.include_router(analytics.router)
@@ -44,23 +39,20 @@ app.include_router(replies.router)
 app.include_router(opportunities.router)
 app.include_router(auth.router)
 app.include_router(voice.router)
+app.include_router(stripe_router.router)
 
-# ROOT
 @app.get("/")
 def root():
     return {"status": "root working"}
 
-# HEALTH
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
-# TEST
 @app.get("/test")
 def test():
     return {"message": "API is alive"}
 
-# TRACK OPEN
 @app.get("/track/open/{lead_id}")
 def track_open(lead_id: int):
     db = SessionLocal()
@@ -72,23 +64,18 @@ def track_open(lead_id: int):
         db.commit()
     finally:
         db.close()
-
     return Response(content=b"", media_type="image/png")
 
-# SCHEDULER
 scheduler = BackgroundScheduler()
-
 
 @app.on_event("startup")
 def start_scheduler():
 
-    # --- FULL PIPELINE (daily at 6am) ---
     def run_full_pipeline():
         db = SessionLocal()
         try:
             print("[Pipeline] Starting full automated pipeline...")
 
-            # Step 1 - Collect FSA demand
             from services.food_standards import fetch_all_cities
             from models import DemandProspect
             results = fetch_all_cities()
@@ -116,12 +103,10 @@ def start_scheduler():
             db.commit()
             print(f"[Pipeline] FSA collected: {added} new prospects")
 
-            # Step 2 - Collect Companies House
             from services.companies_house import collect_companies_house
             ch_result = collect_companies_house(db)
             print(f"[Pipeline] Companies House: {ch_result}")
 
-            # Step 3 - Score demand
             from services.scoring import calculate_demand_score, assign_high_priority_flags
             prospects = db.query(DemandProspect).all()
             for p in prospects:
@@ -139,20 +124,18 @@ def start_scheduler():
             db.commit()
             print(f"[Pipeline] Scoring complete")
 
-            # Step 4 - Run matching engine
             from services.matching_engine import run_matching_engine
             matches_created = run_matching_engine(db)
             print(f"[Pipeline] Matches created: {matches_created}")
 
-            # Step 5 - Enrich plumber emails
             from services.plumber_enrichment import enrich_plumbers
             enrich_result = enrich_plumbers(db, limit=100)
             print(f"[Pipeline] Plumber enrichment: {enrich_result}")
 
-            # Step 6 - Clean bounced emails
             from services.bounce_handler import clean_bounced_emails
             bounce_result = clean_bounced_emails(db)
             print(f"[Pipeline] Bounces cleaned: {bounce_result}")
+
             run_outreach_job()
             print(f"[Pipeline] Outreach complete")
 
@@ -161,7 +144,6 @@ def start_scheduler():
         finally:
             db.close()
 
-    # --- PLANNING DATA COLLECTION (daily at 7am) ---
     def run_planning_collection():
         from services.planning_data import collect_planning_applications
         db2 = SessionLocal()
@@ -170,35 +152,9 @@ def start_scheduler():
         finally:
             db2.close()
 
-    # Full pipeline runs daily at 6am
     scheduler.add_job(run_full_pipeline, "cron", hour=6, minute=0)
-
-    # Planning data runs daily at 7am
     scheduler.add_job(run_planning_collection, "cron", hour=7, minute=0)
-
-    # Outreach runs every 24 hours
     scheduler.add_job(run_outreach_job, "interval", hours=24)
-
-    # Reply detection every 10 minutes
     scheduler.add_job(
         lambda: detect_gmail_replies(SessionLocal()),
-        "interval",
-        minutes=10
-    )
-
-    # Reply follow-ups every 15 minutes
-    scheduler.add_job(
-        lambda: send_reply_followups(SessionLocal()),
-        "interval",
-        minutes=15
-    )
-
-    # Voice calls to interested plumbers every 30 minutes
-    scheduler.add_job(
-        lambda: __import__('services.voice_call', fromlist=['call_interested_plumbers']).call_interested_plumbers(SessionLocal()),
-        "interval",
-        minutes=30
-    )
-
-    scheduler.start()
-    print("Scheduler started")
+        "interva
