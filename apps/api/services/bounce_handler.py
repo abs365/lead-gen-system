@@ -1,14 +1,14 @@
 import os
-import imaplib
-import email
-from email.header import decode_header
+import re
+import requests
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from models import Plumber, OutreachLog, Match
+from models import Plumber, OutreachLog
 
-IMAP_HOST = "outlook.office365.com"
-IMAP_EMAIL = os.getenv("EMAIL_ACCOUNT")
-IMAP_PASSWORD = os.getenv("AZURE_CLIENT_SECRET")
+TENANT_ID = os.getenv("AZURE_TENANT_ID")
+CLIENT_ID = os.getenv("AZURE_CLIENT_ID")
+CLIENT_SECRET = os.getenv("AZURE_CLIENT_SECRET")
+SENDER_EMAIL = os.getenv("EMAIL_ACCOUNT")
 
 BOUNCE_SUBJECTS = [
     "undeliverable",
@@ -22,93 +22,65 @@ BOUNCE_SUBJECTS = [
     "bounced",
 ]
 
-def _decode_text(value) -> str:
-    if not value:
-        return ""
-    decoded_parts = decode_header(value)
-    result = ""
-    for part, encoding in decoded_parts:
-        if isinstance(part, bytes):
-            result += part.decode(encoding or "utf-8", errors="ignore")
-        else:
-            result += part
-    return result.strip()
+def get_access_token():
+    url = f"https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/token"
+    data = {
+        "client_id": CLIENT_ID,
+        "client_secret": CLIENT_SECRET,
+        "scope": "https://graph.microsoft.com/.default",
+        "grant_type": "client_credentials",
+    }
+    response = requests.post(url, data=data)
+    if response.status_code != 200:
+        raise Exception(f"Token error: {response.text}")
+    return response.json()["access_token"]
 
 def clean_bounced_emails(db: Session) -> dict:
-    if not IMAP_EMAIL or not IMAP_PASSWORD:
-        return {"success": False, "message": "Missing IMAP credentials", "cleaned": 0}
-
     try:
-        mail = imaplib.IMAP4_SSL(IMAP_HOST)
-        mail.login(IMAP_EMAIL, IMAP_PASSWORD)
-        mail.select("INBOX")
+        token = get_access_token()
+        headers = {"Authorization": f"Bearer {token}"}
 
-        since_date = (datetime.utcnow() - timedelta(days=7)).strftime("%d-%b-%Y")
-        status, messages = mail.search(None, f'(SINCE "{since_date}")')
+        since_date = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        url = f"https://graph.microsoft.com/v1.0/users/{SENDER_EMAIL}/messages"
+        params = {
+            "$filter": f"receivedDateTime ge {since_date}",
+            "$select": "subject,body",
+            "$top": 50,
+        }
 
-        if status != "OK":
-            mail.logout()
-            return {"success": False, "message": "IMAP search failed", "cleaned": 0}
+        response = requests.get(url, headers=headers, params=params)
+        if response.status_code != 200:
+            return {"success": False, "message": response.text, "cleaned": 0}
 
-        email_ids = messages[0].split()
+        messages = response.json().get("value", [])
         cleaned = 0
         bounced_emails = []
 
-        for email_id in email_ids:
-            try:
-                status, data = mail.fetch(email_id, "(RFC822)")
-                if status != "OK":
-                    continue
+        for msg in messages:
+            subject = (msg.get("subject") or "").lower()
 
-                msg = email.message_from_bytes(data[0][1])
-                subject = _decode_text(msg.get("Subject", "")).lower()
-
-                if not any(b in subject for b in BOUNCE_SUBJECTS):
-                    continue
-
-                # Extract bounced email address from body
-                body = ""
-                if msg.is_multipart():
-                    for part in msg.walk():
-                        if part.get_content_type() == "text/plain":
-                            payload = part.get_payload(decode=True)
-                            if payload:
-                                body += payload.decode(errors="ignore")
-                else:
-                    payload = msg.get_payload(decode=True)
-                    if payload:
-                        body = payload.decode(errors="ignore")
-
-                # Find email addresses in bounce body
-                import re
-                emails_found = re.findall(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", body)
-
-                for bad_email in emails_found:
-                    bad_email = bad_email.lower().strip()
-                    if "meritbold" in bad_email or "microsoft" in bad_email:
-                        continue
-
-                    # Remove from plumbers
-                    plumber = db.query(Plumber).filter(
-                        Plumber.email == bad_email
-                    ).first()
-                    if plumber:
-                        plumber.email = None
-                        bounced_emails.append(bad_email)
-                        cleaned += 1
-
-                    # Mark outreach log as bounced
-                    log = db.query(OutreachLog).filter(
-                        OutreachLog.email == bad_email
-                    ).first()
-                    if log:
-                        log.status = "bounced"
-
-            except Exception:
+            if not any(b in subject for b in BOUNCE_SUBJECTS):
                 continue
 
+            body = msg.get("body", {}).get("content", "")
+            emails_found = re.findall(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", body)
+
+            for bad_email in emails_found:
+                bad_email = bad_email.lower().strip()
+                if any(x in bad_email for x in ["meritbold", "microsoft", "outlook", "example", "schema"]):
+                    continue
+
+                plumber = db.query(Plumber).filter(Plumber.email == bad_email).first()
+                if plumber:
+                    plumber.email = None
+                    bounced_emails.append(bad_email)
+                    cleaned += 1
+
+                log = db.query(OutreachLog).filter(OutreachLog.email == bad_email).first()
+                if log:
+                    log.status = "bounced"
+
         db.commit()
-        mail.logout()
 
         return {
             "success": True,
