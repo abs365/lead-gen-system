@@ -59,8 +59,6 @@ def detect_gmail_replies(db: Session) -> dict:
                 sender_email = msg.get("from", {}).get("emailAddress", {}).get("address", "").lower().strip()
                 subject = msg.get("subject", "") or ""
                 body = msg.get("body", {}).get("content", "") or ""
-
-                # Strip HTML tags from body
                 body_clean = re.sub(r"<[^>]+>", " ", body).strip()
                 body_lower = body_clean.lower().strip()
                 subject_lower = subject.lower().strip()
@@ -68,7 +66,6 @@ def detect_gmail_replies(db: Session) -> dict:
                 if not sender_email or sender_email == SENDER_EMAIL.lower():
                     continue
 
-                # Match to outreach log
                 lead = db.query(OutreachLog).filter(
                     OutreachLog.email == sender_email
                 ).first()
@@ -84,10 +81,9 @@ def detect_gmail_replies(db: Session) -> dict:
                 if not lead:
                     continue
 
-                # Check for STOP/unsubscribe
                 is_stop = (
-                    body_lower.startswith("stop") or
                     body_lower.strip() == "stop" or
+                    body_lower.startswith("stop") or
                     "unsubscribe" in body_lower or
                     "remove me" in body_lower or
                     "please stop" in body_lower or
@@ -98,3 +94,42 @@ def detect_gmail_replies(db: Session) -> dict:
                 if is_stop:
                     lead.status = "unsubscribed"
                     lead.replied = 1
+                    if hasattr(lead, "replied_at"):
+                        lead.replied_at = datetime.utcnow()
+                    matched_replies += 1
+                    plumber = db.query(Plumber).filter(
+                        Plumber.email == sender_email
+                    ).first()
+                    if plumber:
+                        plumber.is_commercial = 0
+                else:
+                    lead.replied = 1
+                    lead.status = "interested"
+                    if hasattr(lead, "reply_subject"):
+                        lead.reply_subject = subject
+                    if hasattr(lead, "reply_body"):
+                        lead.reply_body = body_clean[:5000]
+                    if hasattr(lead, "replied_at"):
+                        lead.replied_at = datetime.utcnow()
+                    lead.lead_score = calculate_lead_score(lead)
+                    matched_replies += 1
+
+            except Exception:
+                continue
+
+        db.commit()
+
+        return {
+            "success": True,
+            "message": "Reply detection completed",
+            "scanned_emails": scanned,
+            "matched_replies": matched_replies,
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "message": str(e),
+            "scanned_emails": 0,
+            "matched_replies": 0,
+        }
