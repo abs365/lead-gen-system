@@ -91,13 +91,19 @@ def send_match_outreach():
 
                 body = f"""
                 <p>Hi {plumber.name or 'there'},</p>
-                <p>We identified a business currently likely needing commercial plumbing support:</p>
+                <p>We found a business in {demand.city or 'your area'} that likely needs commercial plumbing support:</p>
                 <p><strong>{demand.name}</strong> ({demand.category or 'Business'})<br>
                 Location: {demand.address or demand.city or 'London'}</p>
-                <p>Match score: {match.match_score}</p>
-                <p>{match.match_reason or ''}</p>
-                <p>Reply YES and we will send the full contact details.</p>
-                <p>— LeadGen</p>
+                <p>Reply <strong>YES</strong> and we will send the full contact details over.</p>
+                <p>— MeritBold Lead Generation<br>
+                generalenquiry@meritbold.com</p>
+                <hr>
+                <p style="font-size:11px;color:#999;">
+                You are receiving this because your business offers plumbing services in {demand.city or 'your area'}.
+                This is a legitimate business opportunity email sent under UK PECR legitimate interest provisions.
+                To unsubscribe and stop receiving emails, reply with the word STOP and we will remove you immediately.
+                MeritBold, United Kingdom.
+                </p>
                 """
 
                 send_email(
@@ -289,7 +295,13 @@ def follow_up_hot_leads():
                 <p>Great — thanks for your reply.</p>
                 <p>We currently have <strong>live plumbing job opportunities</strong> in your area.</p>
                 <p>Reply with your availability or preferred contact number and we will connect you directly.</p>
-                <p>— LeadGen</p>
+                <p>— MeritBold Lead Generation<br>
+                generalenquiry@meritbold.com</p>
+                <hr>
+                <p style="font-size:11px;color:#999;">
+                To unsubscribe, reply with STOP and we will remove you immediately.
+                MeritBold, United Kingdom.
+                </p>
                 """
 
                 send_email(
