@@ -142,7 +142,15 @@ def start_scheduler():
             matches_created = run_matching_engine(db)
             print(f"[Pipeline] Matches created: {matches_created}")
 
-            # Step 5 - Send match outreach
+            # Step 5 - Enrich plumber emails
+            from services.plumber_enrichment import enrich_plumbers
+            enrich_result = enrich_plumbers(db, limit=100)
+            print(f"[Pipeline] Plumber enrichment: {enrich_result}")
+
+            # Step 6 - Clean bounced emails
+            from services.bounce_handler import clean_bounced_emails
+            bounce_result = clean_bounced_emails(db)
+            print(f"[Pipeline] Bounces cleaned: {bounce_result}")
             run_outreach_job()
             print(f"[Pipeline] Outreach complete")
 

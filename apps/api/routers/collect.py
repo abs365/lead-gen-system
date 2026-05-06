@@ -477,3 +477,9 @@ def enrich_plumbers_endpoint(db: Session = Depends(get_db)):
     from services.plumber_enrichment import enrich_plumbers
     result = enrich_plumbers(db, limit=50)
     return result
+
+@router.get("/clean-bounces")
+def clean_bounces_endpoint(db: Session = Depends(get_db)):
+    from services.bounce_handler import clean_bounced_emails
+    result = clean_bounced_emails(db)
+    return result
