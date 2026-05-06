@@ -1,219 +1,100 @@
 import os
-import imaplib
-import email
-from email.header import decode_header
+import re
+import requests
 from datetime import datetime, timedelta
-from typing import Optional
-
 from sqlalchemy.orm import Session
-
-from models import OutreachLog
+from models import OutreachLog, Plumber
 from services.scoring import calculate_lead_score
 
-
-# =========================
-# ENV CONFIG (NO SETTINGS OBJECT)
-# =========================
-IMAP_EMAIL = os.getenv("EMAIL_ACCOUNT")
-IMAP_PASSWORD = os.getenv("EMAIL_PASSWORD")  # you must add this
-IMAP_HOST = os.getenv("IMAP_HOST", "outlook.office365.com")
-IMAP_FOLDER = os.getenv("IMAP_FOLDER", "INBOX")
+TENANT_ID = os.getenv("AZURE_TENANT_ID")
+CLIENT_ID = os.getenv("AZURE_CLIENT_ID")
+CLIENT_SECRET = os.getenv("AZURE_CLIENT_SECRET")
+SENDER_EMAIL = os.getenv("EMAIL_ACCOUNT")
 
 
-# =========================
-# HELPERS
-# =========================
-def _decode_text(value: Optional[str]) -> str:
-    if not value:
-        return ""
-
-    decoded_parts = decode_header(value)
-    result = ""
-
-    for part, encoding in decoded_parts:
-        if isinstance(part, bytes):
-            result += part.decode(encoding or "utf-8", errors="ignore")
-        else:
-            result += part
-
-    return result.strip()
+def get_access_token():
+    url = f"https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/token"
+    data = {
+        "client_id": CLIENT_ID,
+        "client_secret": CLIENT_SECRET,
+        "scope": "https://graph.microsoft.com/.default",
+        "grant_type": "client_credentials",
+    }
+    response = requests.post(url, data=data)
+    if response.status_code != 200:
+        raise Exception(f"Token error: {response.text}")
+    return response.json()["access_token"]
 
 
-def _extract_email_address(from_header: str) -> str:
-    return email.utils.parseaddr(from_header)[1].lower().strip()
-
-
-def _get_email_body(message) -> str:
-    try:
-        if message.is_multipart():
-            for part in message.walk():
-                content_type = part.get_content_type()
-                disposition = str(part.get("Content-Disposition"))
-
-                if content_type == "text/plain" and "attachment" not in disposition:
-                    payload = part.get_payload(decode=True)
-                    if payload:
-                        return payload.decode(errors="ignore")
-        else:
-            payload = message.get_payload(decode=True)
-            if payload:
-                return payload.decode(errors="ignore")
-    except Exception:
-        return ""
-
-    return ""
-
-
-# =========================
-# MAIN FUNCTION
-# =========================
 def detect_gmail_replies(db: Session) -> dict:
-    # --- VALIDATION ---
-    if not IMAP_EMAIL or not IMAP_PASSWORD:
-        return {
-            "success": False,
-            "message": "Missing IMAP credentials (.env)",
-            "scanned_emails": 0,
-            "matched_replies": 0,
+    try:
+        token = get_access_token()
+        headers = {"Authorization": f"Bearer {token}"}
+
+        since_date = (datetime.utcnow() - timedelta(days=14)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        url = f"https://graph.microsoft.com/v1.0/users/{SENDER_EMAIL}/messages"
+        params = {
+            "$filter": f"receivedDateTime ge {since_date}",
+            "$select": "subject,body,from",
+            "$top": 200,
         }
 
-    try:
-        mail = imaplib.IMAP4_SSL(IMAP_HOST)
-        mail.login(IMAP_EMAIL, IMAP_PASSWORD)
-        mail.select(IMAP_FOLDER)
-
-        since_date = (datetime.utcnow() - timedelta(days=14)).strftime("%d-%b-%Y")
-        status, messages = mail.search(None, f'(SINCE "{since_date}")')
-
-        if status != "OK":
-            mail.logout()
+        response = requests.get(url, headers=headers, params=params)
+        if response.status_code != 200:
             return {
                 "success": False,
-                "message": "IMAP search failed",
+                "message": response.text,
                 "scanned_emails": 0,
                 "matched_replies": 0,
             }
 
-        email_ids = messages[0].split()
-
+        messages = response.json().get("value", [])
         scanned = 0
         matched_replies = 0
 
-        for email_id in email_ids:
+        for msg in messages:
             try:
-                status, data = mail.fetch(email_id, "(RFC822)")
-
-                if status != "OK":
-                    continue
-
                 scanned += 1
 
-                msg = email.message_from_bytes(data[0][1])
+                sender_email = msg.get("from", {}).get("emailAddress", {}).get("address", "").lower().strip()
+                subject = msg.get("subject", "") or ""
+                body = msg.get("body", {}).get("content", "") or ""
 
-                from_header = _decode_text(msg.get("From"))
-                sender_email = _extract_email_address(from_header)
+                # Strip HTML tags from body
+                body_clean = re.sub(r"<[^>]+>", " ", body).strip()
+                body_lower = body_clean.lower().strip()
+                subject_lower = subject.lower().strip()
 
-                subject = _decode_text(msg.get("Subject"))
-                body = _get_email_body(msg)
-
-                if not sender_email:
+                if not sender_email or sender_email == SENDER_EMAIL.lower():
                     continue
 
-                # =========================
-                # MATCHING LOGIC
-                # =========================
-                lead = (
-                    db.query(OutreachLog)
-                    .filter(OutreachLog.email == sender_email)
-                    .first()
-                )
+                # Match to outreach log
+                lead = db.query(OutreachLog).filter(
+                    OutreachLog.email == sender_email
+                ).first()
 
-                # fallback: match by domain
                 if not lead and "@" in sender_email:
                     sender_domain = sender_email.split("@")[1]
-
-                    leads = db.query(OutreachLog).all()
-
-                    for l in leads:
+                    for l in db.query(OutreachLog).all():
                         if l.email and "@" in l.email:
-                            lead_domain = l.email.split("@")[1]
-                            if sender_domain == lead_domain:
+                            if l.email.split("@")[1] == sender_domain:
                                 lead = l
                                 break
 
                 if not lead:
                     continue
 
-                # =========================
-                # UPDATE LEAD
-                # =========================
-                # =========================
-                # UPDATE LEAD
-                # =========================
-
-                # CHECK FOR UNSUBSCRIBE
-                body_lower = body.lower().strip()
-                subject_lower = subject.lower().strip()
+                # Check for STOP/unsubscribe
                 is_stop = (
                     body_lower.startswith("stop") or
+                    body_lower.strip() == "stop" or
                     "unsubscribe" in body_lower or
                     "remove me" in body_lower or
-                    "stop" == body_lower.strip() or
+                    "please stop" in body_lower or
+                    "stop sending" in body_lower or
                     "stop" in subject_lower
                 )
 
                 if is_stop:
                     lead.status = "unsubscribed"
                     lead.replied = 1
-                    if hasattr(lead, "reply_body"):
-                        lead.reply_body = body[:5000]
-                    if hasattr(lead, "replied_at"):
-                        lead.replied_at = datetime.utcnow()
-                    matched_replies += 1
-
-                    # Also flag the plumber so future outreach skips them
-                    from models import Plumber
-                    plumber = db.query(Plumber).filter(
-                        Plumber.email == sender_email
-                    ).first()
-                    if plumber:
-                        plumber.is_commercial = 0  # repurpose flag to block outreach
-
-                    continue
-
-                lead.replied = 1
-                lead.status = "interested"
-
-                if hasattr(lead, "reply_subject"):
-                    lead.reply_subject = subject
-
-                if hasattr(lead, "reply_body"):
-                    lead.reply_body = body[:5000]
-
-                if hasattr(lead, "replied_at"):
-                    lead.replied_at = datetime.utcnow()
-
-                lead.lead_score = calculate_lead_score(lead)
-
-                matched_replies += 1
-
-            except Exception:
-                continue  # skip broken emails safely
-
-        db.commit()
-        mail.logout()
-
-        return {
-            "success": True,
-            "message": "Reply detection completed",
-            "scanned_emails": scanned,
-            "matched_replies": matched_replies,
-        }
-
-    except Exception as e:
-        return {
-            "success": False,
-            "message": str(e),
-            "scanned_emails": 0,
-            "matched_replies": 0,
-        }
