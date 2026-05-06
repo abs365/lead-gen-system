@@ -192,11 +192,11 @@ def start_scheduler():
         minutes=15
     )
 
-    # Deal detection every 20 minutes
+    # Voice calls to interested plumbers every 30 minutes
     scheduler.add_job(
-        lambda: detect_and_close_deals(SessionLocal()),
+        lambda: __import__('services.voice_call', fromlist=['call_interested_plumbers']).call_interested_plumbers(SessionLocal()),
         "interval",
-        minutes=20
+        minutes=30
     )
 
     scheduler.start()
