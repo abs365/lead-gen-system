@@ -1,4 +1,4 @@
-import os
+content = '''import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -161,3 +161,9 @@ def start_scheduler():
 
     scheduler.start()
     print("Scheduler started")
+'''
+
+with open("main.py", "w", encoding="utf-8") as f:
+    f.write(content)
+
+print("main.py written successfully")
