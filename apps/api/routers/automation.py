@@ -85,6 +85,9 @@ def send_match_outreach():
             if not plumber.email:
                 skipped += 1
                 continue
+            if plumber.is_commercial == 0:
+                skipped += 1
+                continue
 
             try:
                 subject = f"New plumbing job opportunity — {demand.city or 'London'}"

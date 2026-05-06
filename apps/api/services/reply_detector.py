@@ -147,6 +147,40 @@ def detect_gmail_replies(db: Session) -> dict:
                 # =========================
                 # UPDATE LEAD
                 # =========================
+                # =========================
+                # UPDATE LEAD
+                # =========================
+
+                # CHECK FOR UNSUBSCRIBE
+                body_lower = body.lower().strip()
+                subject_lower = subject.lower().strip()
+                is_stop = (
+                    body_lower.startswith("stop") or
+                    "unsubscribe" in body_lower or
+                    "remove me" in body_lower or
+                    "stop" == body_lower.strip() or
+                    "stop" in subject_lower
+                )
+
+                if is_stop:
+                    lead.status = "unsubscribed"
+                    lead.replied = 1
+                    if hasattr(lead, "reply_body"):
+                        lead.reply_body = body[:5000]
+                    if hasattr(lead, "replied_at"):
+                        lead.replied_at = datetime.utcnow()
+                    matched_replies += 1
+
+                    # Also flag the plumber so future outreach skips them
+                    from models import Plumber
+                    plumber = db.query(Plumber).filter(
+                        Plumber.email == sender_email
+                    ).first()
+                    if plumber:
+                        plumber.is_commercial = 0  # repurpose flag to block outreach
+
+                    continue
+
                 lead.replied = 1
                 lead.status = "interested"
 
