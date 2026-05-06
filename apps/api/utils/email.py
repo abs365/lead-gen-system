@@ -39,7 +39,7 @@ def send_email(to_email: str, subject: str, body: str):
         "message": {
             "subject": subject,
             "body": {
-                "contentType": "Text",
+                "contentType": "HTML",
                 "content": body
             },
             "toRecipients": [
