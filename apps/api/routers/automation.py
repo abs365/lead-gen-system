@@ -60,7 +60,6 @@ def send_match_outreach():
     errors = []
 
     try:
-        # Get all unsent matches with score >= 60, ordered by score
         all_matches = (
             db.query(Match, DemandProspect, Plumber)
             .join(DemandProspect, Match.demand_prospect_id == DemandProspect.id)
@@ -72,7 +71,6 @@ def send_match_outreach():
             .all()
         )
 
-        # Cap at 3 matches per plumber
         plumber_counts = {}
         selected = []
         for match, demand, plumber in all_matches:
@@ -92,8 +90,7 @@ def send_match_outreach():
             try:
                 subject = f"New plumbing job opportunity — {demand.city or 'London'}"
 
-                body = f"<p>Hi {plumber.name or 'there'},</p><p>We found a business in {demand.city or 'your area'} that likely needs commercial plumbing support:</p><p><strong>{demand.name}</strong> ({demand.category or 'Business'})<br>Location: {demand.address or demand.city or 'London'}</p><p>Reply <strong>YES</strong> and we will send the full contact details over.</p><p>— MeritBold Lead Generation<br>generalenquiry@meritbold.com</p><hr><p style='font-size:11px;color:#999;'>You are receiving this because your business offers plumbing services in {demand.city or 'your area'}. This is a legitimate business opportunity email sent under UK PECR legitimate interest provisions. To unsubscribe, reply STOP and we will remove you immediately. MeritBold, United Kingdom.</p>"
-                """
+                body = f"<p>Hi {plumber.name or 'there'},</p><p>We found a business in {demand.city or 'your area'} that likely needs commercial plumbing support:</p><p><strong>{demand.name}</strong> ({demand.category or 'Business'})<br>Location: {demand.address or demand.city or 'London'}</p><p>Reply <strong>YES</strong> and we will send the full contact details over.</p><p>— MeritBold Lead Generation<br>generalenquiry@meritbold.com</p><br><p>---</p><p>To stop receiving these emails, reply with the word <strong>STOP</strong>.</p><p style='font-size:11px;color:#999;'>MeritBold, United Kingdom. Sent under UK PECR legitimate interest provisions.</p>"
 
                 send_email(
                     to_email=plumber.email,
@@ -121,16 +118,12 @@ def send_match_outreach():
     finally:
         db.close()
 
+
 # --------------------------------------------------------------------------- #
 # STANDARD OUTREACH + FOLLOW-UP
-# (also called by scheduler — must be callable without HTTP context)
 # --------------------------------------------------------------------------- #
 
 def run_outreach_job():
-    """
-    Scheduler-safe version — creates its own DB session.
-    Called directly by APScheduler.
-    """
     db: Session = SessionLocal()
     now = datetime.utcnow()
     sent_count = 0
@@ -145,54 +138,39 @@ def run_outreach_job():
                 break
 
             try:
-                # AUTO PIPELINE
                 if lead.opened and lead.status == "new":
                     lead.status = "contacted"
 
                 if lead.replied and lead.status in ["new", "contacted"]:
                     lead.status = "interested"
 
-                # SCORING + INTELLIGENCE
                 lead.lead_score = calculate_lead_score(lead)
                 lead.estimated_value = enhanced_estimated_value(lead)
                 lead.close_probability = predict_close_probability(lead)
 
-                # SMART FILTERING
                 if lead.lead_score < 50:
                     continue
-
                 if lead.estimated_value < 100:
                     continue
-
                 if lead.close_probability < 0.3:
                     continue
-
                 if not lead.email:
                     continue
-
                 if any(x in lead.email for x in ["gmail", "yahoo", "outlook"]):
                     continue
 
-                # FIRST EMAIL
                 if lead.sent_at is None:
                     send_email(
                         lead.email,
                         lead.subject,
-                        f"""
-                        <p>Hi {lead.email.split('@')[0]},</p>
-                        <p>We connect plumbing companies with high-intent local jobs.</p>
-                        <p>Interested in receiving a few jobs weekly?</p>
-                        <p>Reply YES.</p>
-                        """
+                        "<p>Hi,</p><p>We connect plumbing companies with high-intent local jobs.</p><p>Interested in receiving a few jobs weekly?</p><p>Reply YES.</p><br><p>---</p><p>To stop receiving these emails, reply with the word <strong>STOP</strong>.</p><p style='font-size:11px;color:#999;'>MeritBold, United Kingdom. Sent under UK PECR legitimate interest provisions.</p>"
                     )
-
                     lead.sent_at = now
                     lead.last_contacted_at = now
                     lead.follow_up_step = 1
                     lead.status = "contacted"
                     sent_count += 1
 
-                # FOLLOW-UP 1
                 elif (
                     lead.follow_up_step == 1
                     and lead.last_contacted_at
@@ -201,14 +179,12 @@ def run_outreach_job():
                     send_email(
                         lead.email,
                         f"Re: {lead.subject}",
-                        "<p>Just checking if you saw my previous message.</p>"
+                        "<p>Just checking if you saw my previous message.</p><br><p>---</p><p>To stop receiving these emails, reply <strong>STOP</strong>.</p>"
                     )
-
                     lead.last_contacted_at = now
                     lead.follow_up_step = 2
                     sent_count += 1
 
-                # FOLLOW-UP 2
                 elif (
                     lead.follow_up_step == 2
                     and lead.last_contacted_at
@@ -217,14 +193,12 @@ def run_outreach_job():
                     send_email(
                         lead.email,
                         f"Re: {lead.subject}",
-                        "<p>Quick follow-up — happy to send details.</p>"
+                        "<p>Quick follow-up — happy to send details.</p><br><p>---</p><p>To stop receiving these emails, reply <strong>STOP</strong>.</p>"
                     )
-
                     lead.last_contacted_at = now
                     lead.follow_up_step = 3
                     sent_count += 1
 
-                # FINAL FOLLOW-UP
                 elif (
                     lead.follow_up_step == 3
                     and lead.last_contacted_at
@@ -233,9 +207,8 @@ def run_outreach_job():
                     send_email(
                         lead.email,
                         f"Final follow-up: {lead.subject}",
-                        "<p>Last message — let me know if interested.</p>"
+                        "<p>Last message — let me know if interested.</p><br><p>---</p><p>To stop receiving these emails, reply <strong>STOP</strong>.</p>"
                     )
-
                     lead.last_contacted_at = now
                     lead.follow_up_step = 4
                     sent_count += 1
@@ -252,7 +225,6 @@ def run_outreach_job():
 
 @router.get("/send-outreach")
 def send_outreach():
-    """HTTP endpoint — delegates to the scheduler-safe job function."""
     run_outreach_job()
     return {
         "status": "automation run",
@@ -278,9 +250,8 @@ def follow_up_hot_leads():
                     continue
 
                 subject = f"Next steps — {lead.subject}"
+                body = f"<p>Hi {lead.email.split('@')[0]},</p><p>Great — thanks for your reply.</p><p>We currently have <strong>live plumbing job opportunities</strong> in your area.</p><p>Reply with your availability or preferred contact number and we will connect you directly.</p><p>— MeritBold Lead Generation<br>generalenquiry@meritbold.com</p><br><p>---</p><p>To stop receiving these emails, reply with the word <strong>STOP</strong>.</p><p style='font-size:11px;color:#999;'>MeritBold, United Kingdom. Sent under UK PECR legitimate interest provisions.</p>"
 
-                body = f"<p>Hi {plumber.name or 'there'},</p><p>We found a business in {demand.city or 'your area'} that likely needs commercial plumbing support:</p><p><strong>{demand.name}</strong> ({demand.category or 'Business'})<br>Location: {demand.address or demand.city or 'London'}</p><p>Reply <strong>YES</strong> and we will send the full contact details over.</p><p>— MeritBold Lead Generation<br>generalenquiry@meritbold.com</p><hr><p style='font-size:11px;color:#999;'>You are receiving this because your business offers plumbing services in {demand.city or 'your area'}. This is a legitimate business opportunity email sent under UK PECR legitimate interest provisions. To unsubscribe, reply STOP and we will remove you immediately. MeritBold, United Kingdom.</p>"
-              
                 send_email(
                     to_email=lead.email,
                     subject=subject,
@@ -300,17 +271,16 @@ def follow_up_hot_leads():
     finally:
         db.close()
 
+
 # --------------------------------------------------------------------------- #
 # TEST EMAIL
 # --------------------------------------------------------------------------- #
 
 @router.get("/send-test-email")
 def send_test_email():
-    from services.email import send_email
-    
     subject = "New plumbing job opportunity — London"
 
-    body = f"<p>Hi {plumber.name or 'there'},</p><p>We found a business in {demand.city or 'your area'} that likely needs commercial plumbing support:</p><p><strong>{demand.name}</strong> ({demand.category or 'Business'})<br>Location: {demand.address or demand.city or 'London'}</p><p>Reply <strong>YES</strong> and we will send the full contact details over.</p><p>— MeritBold Lead Generation<br>generalenquiry@meritbold.com</p><hr><p style='font-size:11px;color:#999;'>You are receiving this because your business offers plumbing services in {demand.city or 'your area'}. This is a legitimate business opportunity email sent under UK PECR legitimate interest provisions. To unsubscribe, reply STOP and we will remove you immediately. MeritBold, United Kingdom.</p>"
+    body = "<p>Hi Test Plumber,</p><p>We found a business in London that likely needs commercial plumbing support:</p><p><strong>The Grand Hotel London</strong> (Hotel)<br>Location: 123 Oxford Street, London, W1D 1BS</p><p>Reply <strong>YES</strong> and we will send the full contact details over.</p><p>— MeritBold Lead Generation<br>generalenquiry@meritbold.com</p><br><p>---</p><p>To stop receiving these emails, reply with the word <strong>STOP</strong>.</p><p style='font-size:11px;color:#999;'>MeritBold, United Kingdom. Sent under UK PECR legitimate interest provisions.</p>"
 
     send_email(
         to_email="blue2gtv@gmail.com",
