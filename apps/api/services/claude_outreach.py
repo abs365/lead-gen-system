@@ -60,7 +60,7 @@ Details:
 
 Use this exact format and structure:
 
-Hi [plumber name],
+Hi {plumber_name},
 
 We help connect plumbing companies with commercial property leads in [city].
 
