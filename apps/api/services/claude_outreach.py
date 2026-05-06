@@ -64,12 +64,9 @@ Hi {plumber_name},
 
 We help connect plumbing companies with commercial property leads in [city].
 
-We recently identified a [business type] that may need commercial plumbing support:
+We recently identified a [business type] in [area of city or postcode district only] that may need commercial plumbing support.
 
-[Prospect business name]
-[Address]
-
-If you'd like the full contact details, reply YES and I'll send them over.
+If you'd like the full contact details including business name and address, reply YES and I'll send them over.
 
 If you'd prefer not to receive these emails, just reply unsubscribe.
 
@@ -139,12 +136,9 @@ def build_email_body(
 
 We help connect plumbing companies with commercial property leads in {city}.
 
-We recently identified a {business_type} that may need commercial plumbing support:
+We recently identified a {business_type} in {city} that may need commercial plumbing support.
 
-{prospect_name}
-{address}
-
-If you'd like the full contact details, reply YES and I'll send them over.
+If you'd like the full contact details including business name and address, reply YES and I'll send them over.
 
 If you'd prefer not to receive these emails, just reply unsubscribe.
 
