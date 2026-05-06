@@ -40,12 +40,12 @@ def clean_bounced_emails(db: Session) -> dict:
         token = get_access_token()
         headers = {"Authorization": f"Bearer {token}"}
 
-        since_date = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        since_date = (datetime.utcnow() - timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
         url = f"https://graph.microsoft.com/v1.0/users/{SENDER_EMAIL}/messages"
         params = {
             "$filter": f"receivedDateTime ge {since_date}",
             "$select": "subject,body",
-            "$top": 50,
+            "$top": 200,
         }
 
         response = requests.get(url, headers=headers, params=params)
