@@ -67,7 +67,24 @@ def clean_bounced_emails(db: Session) -> dict:
 
             for bad_email in emails_found:
                 bad_email = bad_email.lower().strip()
-                if any(x in bad_email for x in ["meritbold", "microsoft", "outlook", "example", "schema"]):
+
+                if len(bad_email) < 6:
+                    continue
+
+                if any(x in bad_email for x in ["meritbold", "microsoft", "outlook", "example", "schema",
+                                                  "segmenter", "node", "npm", "webpack", "jquery", "localhost"]):
+                    continue
+
+                if re.search(r'\d+\.\d+\.\d+', bad_email):
+                    continue
+
+                if "@" not in bad_email:
+                    continue
+                domain = bad_email.split("@", 1)[1]
+                tld = domain.rsplit(".", 1)[-1] if "." in domain else ""
+                if not re.fullmatch(r'[a-z]{2,6}', tld):
+                    continue
+                if re.search(r'\d', domain):
                     continue
 
                 plumber = db.query(Plumber).filter(Plumber.email == bad_email).first()
