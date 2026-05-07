@@ -124,7 +124,6 @@ def send_match_outreach():
                 match.outreach_sent_at = datetime.utcnow()
 
                 log = OutreachLog(
-                    plumber_id=plumber.id,
                     email=plumber.email,
                     subject=subject,
                     status="contacted",
