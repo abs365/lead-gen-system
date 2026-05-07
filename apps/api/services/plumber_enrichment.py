@@ -12,7 +12,10 @@ SKIP_DOMAINS = [
     "yahoo.com", "hotmail.com", "w3.org", "jquery.com",
     "amazonaws.com", "cloudflare.com", "google.com", "facebook.com",
     "twitter.com", "instagram.com", "linkedin.com", "apple.com",
+    "domain.com", "email.com",
 ]
+
+FAKE_DOMAINS = {"domain.com", "email.com", "example.com"}
 
 SKIP_PREFIXES = [
     "noreply", "no-reply", "donotreply", "support", "admin",
@@ -21,8 +24,15 @@ SKIP_PREFIXES = [
     "marketing", "sales@", "enquiries@", "enquiry@",
 ]
 
+FAKE_EMAIL_SUBSTRINGS = [
+    "example@", "user@", "your-email@", "youremail@", "test@",
+    "email@email", "name@", "yourname@",
+]
+
 def is_valid_email(email: str) -> bool:
     email = email.lower()
+    if any(fake in email for fake in FAKE_EMAIL_SUBSTRINGS):
+        return False
     if any(skip in email for skip in SKIP_DOMAINS):
         return False
     prefix = email.split("@")[0]
@@ -32,9 +42,10 @@ def is_valid_email(email: str) -> bool:
     if len(parts) != 2:
         return False
     domain = parts[1]
+    if domain in FAKE_DOMAINS:
+        return False
     if "." not in domain:
         return False
-    # Must have a real TLD
     tld = domain.split(".")[-1]
     if len(tld) < 2 or len(tld) > 6:
         return False
@@ -73,6 +84,17 @@ def scrape_email_from_website(url: str) -> str | None:
         return None
     return None
 
+def null_fake_plumber_emails(db: Session) -> int:
+    plumbers = db.query(Plumber).filter(Plumber.email.isnot(None)).all()
+    nulled = 0
+    for plumber in plumbers:
+        if plumber.email and not is_valid_email(plumber.email):
+            plumber.email = None
+            nulled += 1
+    db.commit()
+    return nulled
+
+
 def enrich_plumbers(db: Session, limit: int = 50) -> dict:
     plumbers = db.query(Plumber).filter(
         Plumber.email.is_(None),
@@ -91,11 +113,12 @@ def enrich_plumbers(db: Session, limit: int = 50) -> dict:
             failed += 1
         time.sleep(0.5)
 
-    db.commit()
+    nulled = null_fake_plumber_emails(db)
 
     return {
         "success": True,
         "enriched": enriched,
         "failed": failed,
         "total_processed": enriched + failed,
+        "fake_emails_nulled": nulled,
     }

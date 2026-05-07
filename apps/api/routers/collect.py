@@ -503,6 +503,12 @@ def enrich_plumbers_endpoint(db: Session = Depends(get_db)):
     result = enrich_plumbers(db, limit=50)
     return result
 
+@router.get("/clean-fake-emails")
+def clean_fake_emails_endpoint(db: Session = Depends(get_db)):
+    from services.plumber_enrichment import null_fake_plumber_emails
+    nulled = null_fake_plumber_emails(db)
+    return {"success": True, "fake_emails_nulled": nulled}
+
 @router.get("/clean-bounces")
 def clean_bounces_endpoint(db: Session = Depends(get_db)):
     from services.bounce_handler import clean_bounced_emails
