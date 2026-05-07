@@ -14,6 +14,7 @@ from services.security import require_api_key
 from utils.email import send_email
 from services.auto_send import run_auto_send
 from services.reply_handler import process_replies
+from services.reply_detector import hard_unsubscribe
 
 from models import Plumber, Opportunity
 
@@ -35,6 +36,10 @@ router = APIRouter(
 class SendOpportunityRequest(BaseModel):
     opportunity_id: int
     plumber_id: int
+
+
+class ManualUnsubscribeRequest(BaseModel):
+    emails: list[str]
 
 
 class OpportunityCreate(BaseModel):
@@ -135,6 +140,26 @@ def create_test_plumber():
 def process_reply_endpoint():
     process_replies()
     return {"message": "Replies processed"}
+
+
+# --------------------------------------------------------------------------- #
+# MANUAL UNSUBSCRIBE
+# --------------------------------------------------------------------------- #
+
+@router.post("/manual-unsubscribe", dependencies=[Depends(require_api_key)])
+def manual_unsubscribe(data: ManualUnsubscribeRequest):
+    db = SessionLocal()
+    processed = []
+    try:
+        for email in data.emails:
+            email = email.strip().lower()
+            if not email:
+                continue
+            hard_unsubscribe(db, email)
+            processed.append(email)
+        return {"unsubscribed": processed, "count": len(processed)}
+    finally:
+        db.close()
 
 
 # --------------------------------------------------------------------------- #
