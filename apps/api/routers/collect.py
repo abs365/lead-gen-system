@@ -16,7 +16,7 @@ from services.auto_send import run_auto_send
 from services.reply_handler import process_replies
 from services.reply_detector import hard_unsubscribe
 
-from models import Plumber, Opportunity
+from models import Plumber, Opportunity, OutreachLog
 
 # --------------------------------------------------------------------------- #
 # ROUTER
@@ -519,3 +519,52 @@ def clean_bounces_endpoint(db: Session = Depends(get_db)):
     from services.bounce_handler import clean_bounced_emails
     result = clean_bounced_emails(db)
     return result
+
+
+# --------------------------------------------------------------------------- #
+# CLEAN JUNK OUTREACH LOGS + PLUMBER EMAILS
+# --------------------------------------------------------------------------- #
+
+import re as _re
+
+_JUNK_EMAIL_SUBSTRINGS = [
+    "@11.", "@1.", "@5.", "@1.8",
+    "segmenter", "carousel", "bootstrap", "jquery", "webpack", "node_modules",
+]
+
+
+def _email_is_junk(email: str) -> bool:
+    if not email:
+        return False
+    e = email.lower()
+    if any(s in e for s in _JUNK_EMAIL_SUBSTRINGS):
+        return True
+    if "@" in e:
+        domain = e.split("@", 1)[1]
+        if _re.search(r'\d', domain):
+            return True
+    return False
+
+
+@router.get("/clean-all-fake-outreach-logs")
+def clean_all_fake_outreach_logs(db: Session = Depends(get_db)):
+    logs = db.query(OutreachLog).filter(OutreachLog.email.isnot(None)).all()
+    deleted = 0
+    for log in logs:
+        if _email_is_junk(log.email):
+            db.delete(log)
+            deleted += 1
+    db.commit()
+    return {"success": True, "deleted": deleted}
+
+
+@router.get("/wipe-bad-plumber-emails")
+def wipe_bad_plumber_emails(db: Session = Depends(get_db)):
+    plumbers = db.query(Plumber).filter(Plumber.email.isnot(None)).all()
+    wiped = 0
+    for plumber in plumbers:
+        if _email_is_junk(plumber.email):
+            plumber.email = None
+            wiped += 1
+    db.commit()
+    return {"success": True, "wiped": wiped}
