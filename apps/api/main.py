@@ -128,9 +128,9 @@ def start_scheduler():
             matches_created = run_matching_engine(db)
             print(f"[Pipeline] Matches created: {matches_created}")
 
-            from services.plumber_enrichment import enrich_plumbers
-            enrich_result = enrich_plumbers(db, limit=100)
-            print(f"[Pipeline] Plumber enrichment: {enrich_result}")
+            # from services.plumber_enrichment import enrich_plumbers
+            # enrich_result = enrich_plumbers(db, limit=100)
+            # print(f"[Pipeline] Plumber enrichment: {enrich_result}")
 
             from services.bounce_handler import clean_bounced_emails
             bounce_result = clean_bounced_emails(db)
