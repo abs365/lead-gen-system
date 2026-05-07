@@ -96,7 +96,7 @@ def send_match_outreach():
 
             # Check total emails already sent to this plumber
             already_sent = db.query(OutreachLog).filter(
-                OutreachLog.plumber_id == plumber.id
+                OutreachLog.email == plumber.email
             ).count()
             if already_sent >= 3:
                 skipped += 1
