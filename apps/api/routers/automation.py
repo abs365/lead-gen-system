@@ -71,19 +71,34 @@ def send_match_outreach():
             .all()
         )
 
+        # Cap at 1 email per plumber per send cycle
         plumber_counts = {}
         selected = []
         for match, demand, plumber in all_matches:
             count = plumber_counts.get(plumber.id, 0)
-            if count < 3:
+            if count < 1:
                 selected.append((match, demand, plumber))
                 plumber_counts[plumber.id] = count + 1
 
+        # Hard limit per send cycle
+        MAX_PER_CYCLE = 50
+        cycle_count = 0
+
         for match, demand, plumber in selected:
+            if cycle_count >= MAX_PER_CYCLE:
+                break
             if not plumber.email:
                 skipped += 1
                 continue
             if plumber.is_commercial == 0:
+                skipped += 1
+                continue
+
+            # Check total emails already sent to this plumber
+            already_sent = db.query(OutreachLog).filter(
+                OutreachLog.plumber_id == plumber.id
+            ).count()
+            if already_sent >= 3:
                 skipped += 1
                 continue
 
@@ -118,6 +133,7 @@ def send_match_outreach():
                 )
                 db.add(log)
                 sent += 1
+                cycle_count += 1
 
             except Exception as e:
                 skipped += 1

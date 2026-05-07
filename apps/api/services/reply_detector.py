@@ -3,7 +3,7 @@ import re
 import requests
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from models import OutreachLog, Plumber
+from models import OutreachLog, Plumber, Match
 from services.scoring import calculate_lead_score
 
 TENANT_ID = os.getenv("AZURE_TENANT_ID")
@@ -24,6 +24,29 @@ def get_access_token():
     if response.status_code != 200:
         raise Exception(f"Token error: {response.text}")
     return response.json()["access_token"]
+
+
+def hard_unsubscribe(db: Session, sender_email: str):
+    # 1. Mark ALL outreach logs for this email as unsubscribed
+    db.query(OutreachLog).filter(
+        OutreachLog.email == sender_email
+    ).update({"status": "unsubscribed", "replied": 1}, synchronize_session=False)
+
+    # 2. Find plumber and block completely
+    plumber = db.query(Plumber).filter(
+        Plumber.email == sender_email
+    ).first()
+
+    if plumber:
+        # Block from future outreach
+        plumber.is_commercial = 0
+        # Mark all their unsent matches as sent so they won't be emailed again
+        db.query(Match).filter(
+            Match.plumber_id == plumber.id,
+            Match.outreach_sent == 0
+        ).update({"outreach_sent": 1}, synchronize_session=False)
+
+    db.commit()
 
 
 def detect_gmail_replies(db: Session) -> dict:
@@ -51,6 +74,7 @@ def detect_gmail_replies(db: Session) -> dict:
         messages = response.json().get("value", [])
         scanned = 0
         matched_replies = 0
+        processed_emails = set()
 
         for msg in messages:
             try:
@@ -66,6 +90,28 @@ def detect_gmail_replies(db: Session) -> dict:
                 if not sender_email or sender_email == SENDER_EMAIL.lower():
                     continue
 
+                is_stop = (
+                    body_lower.strip() == "stop" or
+                    body_lower.startswith("stop") or
+                    "unsubscribe" in body_lower or
+                    "remove me" in body_lower or
+                    "please stop" in body_lower or
+                    "stop sending" in body_lower or
+                    "stop emailing" in body_lower or
+                    "excessive" in body_lower or
+                    "do not contact" in body_lower or
+                    "stop" in subject_lower
+                )
+
+                if is_stop:
+                    # Only process once per email address
+                    if sender_email not in processed_emails:
+                        hard_unsubscribe(db, sender_email)
+                        processed_emails.add(sender_email)
+                        matched_replies += 1
+                    continue
+
+                # Find matching lead for YES replies
                 lead = db.query(OutreachLog).filter(
                     OutreachLog.email == sender_email
                 ).first()
@@ -81,38 +127,16 @@ def detect_gmail_replies(db: Session) -> dict:
                 if not lead:
                     continue
 
-                is_stop = (
-                    body_lower.strip() == "stop" or
-                    body_lower.startswith("stop") or
-                    "unsubscribe" in body_lower or
-                    "remove me" in body_lower or
-                    "please stop" in body_lower or
-                    "stop sending" in body_lower or
-                    "stop" in subject_lower
-                )
-
-                if is_stop:
-                    lead.status = "unsubscribed"
-                    lead.replied = 1
-                    if hasattr(lead, "replied_at"):
-                        lead.replied_at = datetime.utcnow()
-                    matched_replies += 1
-                    plumber = db.query(Plumber).filter(
-                        Plumber.email == sender_email
-                    ).first()
-                    if plumber:
-                        plumber.is_commercial = 0
-                else:
-                    lead.replied = 1
-                    lead.status = "interested"
-                    if hasattr(lead, "reply_subject"):
-                        lead.reply_subject = subject
-                    if hasattr(lead, "reply_body"):
-                        lead.reply_body = body_clean[:5000]
-                    if hasattr(lead, "replied_at"):
-                        lead.replied_at = datetime.utcnow()
-                    lead.lead_score = calculate_lead_score(lead)
-                    matched_replies += 1
+                lead.replied = 1
+                lead.status = "interested"
+                if hasattr(lead, "reply_subject"):
+                    lead.reply_subject = subject
+                if hasattr(lead, "reply_body"):
+                    lead.reply_body = body_clean[:5000]
+                if hasattr(lead, "replied_at"):
+                    lead.replied_at = datetime.utcnow()
+                lead.lead_score = calculate_lead_score(lead)
+                matched_replies += 1
 
             except Exception:
                 continue
