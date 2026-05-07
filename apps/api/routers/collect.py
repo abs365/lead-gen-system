@@ -568,3 +568,12 @@ def wipe_bad_plumber_emails(db: Session = Depends(get_db)):
             wiped += 1
     db.commit()
     return {"success": True, "wiped": wiped}
+
+
+@router.get("/wipe-all-plumber-emails")
+def wipe_all_plumber_emails(db: Session = Depends(get_db)):
+    wiped = db.query(Plumber).filter(Plumber.email.isnot(None)).update(
+        {"email": None}, synchronize_session=False
+    )
+    db.commit()
+    return {"success": True, "wiped": wiped}
