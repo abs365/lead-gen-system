@@ -81,7 +81,7 @@ def send_match_outreach():
                 plumber_counts[plumber.id] = count + 1
 
         # Hard limit per send cycle
-        MAX_PER_CYCLE = 10
+        MAX_PER_CYCLE = 25
         cycle_count = 0
 
         for match, demand, plumber in selected:
