@@ -509,6 +509,11 @@ def clean_fake_emails_endpoint(db: Session = Depends(get_db)):
     nulled = null_fake_plumber_emails(db)
     return {"success": True, "fake_emails_nulled": nulled}
 
+@router.get("/process-manual-unsubscribes")
+def process_manual_unsubscribes_endpoint(db: Session = Depends(get_db)):
+    from services.reply_detector import process_manual_unsubscribes
+    return process_manual_unsubscribes(db)
+
 @router.get("/clean-bounces")
 def clean_bounces_endpoint(db: Session = Depends(get_db)):
     from services.bounce_handler import clean_bounced_emails

@@ -12,6 +12,19 @@ CLIENT_SECRET = os.getenv("AZURE_CLIENT_SECRET")
 SENDER_EMAIL = os.getenv("EMAIL_ACCOUNT")
 
 
+MANUAL_UNSUBSCRIBE_EMAILS = [
+    "info@boilerandheatingcare.com",
+]
+
+
+def process_manual_unsubscribes(db: Session) -> dict:
+    processed = []
+    for email in MANUAL_UNSUBSCRIBE_EMAILS:
+        hard_unsubscribe(db, email.lower().strip())
+        processed.append(email)
+    return {"processed": processed, "count": len(processed)}
+
+
 def get_access_token():
     url = f"https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/token"
     data = {

@@ -49,6 +49,8 @@ def is_valid_email(email: str) -> bool:
     tld = domain.split(".")[-1]
     if len(tld) < 2 or len(tld) > 6:
         return False
+    if re.search(r'\d', domain):
+        return False
     return True
 def scrape_email_from_website(url: str) -> str | None:
     if not url:
