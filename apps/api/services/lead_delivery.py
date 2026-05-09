@@ -55,6 +55,7 @@ def get_available_leads(db: Session, plumber: Plumber, limit: int) -> list:
         .filter(location_filter)
         .filter(DemandProspect.id.notin_(delivered_ids))
         .filter(DemandProspect.status != "blacklisted")
+        .filter(DemandProspect.source.in_(["fsa", "google_places"]))
         .order_by(DemandProspect.demand_score.desc())
         .limit(limit)
         .all()
