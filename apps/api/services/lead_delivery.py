@@ -185,11 +185,14 @@ def deliver_leads_to_plumber(db: Session, plumber_id: int, plan: str) -> dict:
 
     try:
         from services.azure_email import send_email
-send_email(
-    to_email=plumber.email,
-    subject=subject,
-    body=body,
-)
+        send_email(
+            to_email=plumber.email,
+            subject=subject,
+            body=body,
+        )
+    except Exception as e:
+        logger.error(f"Failed to send leads email to {plumber.email}: {e}")
+        return {"success": False, "error": str(e)}
     except Exception as e:
         logger.error(f"Failed to send leads email to {plumber.email}: {e}")
         return {"success": False, "error": str(e)}
