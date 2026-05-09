@@ -52,14 +52,22 @@ def get_plans():
             },
             {
                 "id": "unlimited",
-                "name": "LeadGen Unlimited",
+                "name": "LeadGen Pro Max",
                 "price": 199,
                 "currency": "GBP",
-                "leads_per_month": 999,
-                "description": "For large commercial plumbing operations",
-                "features": ["Unlimited leads per month", "Dedicated support", "Lead details on reply", "Follow-up sequences", "Voice call alerts"],
+                "leads_per_month": 50,
+                "description": "For established commercial plumbing operations",
+                "features": ["50 verified leads per month", "Dedicated support", "Lead details on                         reply", "Follow-up sequences", "Voice call alerts"],
             },
-        ]
+            {
+                "id": "enterprise",
+                "name": "LeadGen Enterprise",
+                "price": 349,
+                "currency": "GBP",
+                "leads_per_month": 100,
+                "description": "For large commercial plumbing companies",
+                "features": ["100 verified leads per month", "Dedicated account manager", "Priority             lead matching", "Follow-up sequences", "Voice call alerts", "Custom reporting"],
+},        ]
     }
 
 

@@ -19,9 +19,10 @@ logger = logging.getLogger(__name__)
 PLAN_LIMITS = {
     "basic": 5,
     "pro": 20,
-    "unlimited": 9999,
+    "promax": 50,
+    "unlimited": 50,
+    "enterprise": 100,
 }
-
 
 def get_lead_limit(plan: str) -> int:
     return PLAN_LIMITS.get(plan.lower(), 5)
