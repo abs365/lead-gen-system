@@ -69,6 +69,11 @@ class Plumber(Base):
     category = Column(String(100), default="plumber")
 
     is_commercial = Column(Integer, default=0)
+    stripe_customer_id = Column(String(255), nullable=True)
+    subscription_plan = Column(String(50), nullable=True)
+    subscription_active = Column(Integer, default=0)
+    subscription_started_at = Column(DateTime, nullable=True)
+    leads_delivered_count = Column(Integer, default=0)
 
     created_at = Column(DateTime, default=_utcnow)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
@@ -238,14 +243,6 @@ class Settings(Base):
 
     created_at = Column(DateTime, default=_utcnow)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
-
-"""
-Add this to models.py — the LeadDelivery table tracks which leads
-have been sent to which plumber. This prevents duplicate delivery.
-"""
-
-# Add this import at the top of models.py (already there):
-# from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 
 class LeadDelivery(Base):
     __tablename__ = "lead_deliveries"
