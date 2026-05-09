@@ -282,7 +282,7 @@ def follow_up_hot_leads():
                     continue
 
                 subject = f"Next steps — {lead.subject}"
-                body = f"<p>Hi {lead.email.split('@')[0]},</p><p>Great — thanks for your reply.</p><p>We currently have <strong>live plumbing job opportunities</strong> in your area.</p><p>Reply with your availability or preferred contact number and we will connect you directly.</p><p>— MeritBold Lead Generation<br>generalenquiry@meritbold.com</p><br><p>---</p><p>To stop receiving these emails, reply with the word <strong>STOP</strong>.</p><p style='font-size:11px;color:#999;'>MeritBold, United Kingdom. Sent under UK PECR legitimate interest provisions.</p>"
+                body = f"<p>Hi {lead.email.split('@')[0]},</p><p>Great — thanks for your reply.</p><p>We currently have <strong>live plumbing job opportunities</strong> in your area.</p><p>Reply with your availability or preferred contact number and we will connect you directly.</p><p>— MeritBold Lead Generation<br>outreach@meritbold.com</p><br><p>---</p><p>To stop receiving these emails, reply with the word <strong>STOP</strong>.</p><p style='font-size:11px;color:#999;'>MeritBold, United Kingdom. Sent under UK PECR legitimate interest provisions.</p>"
 
                 send_email(
                     to_email=lead.email,

@@ -16,7 +16,7 @@ BUSINESS_TYPE_HINTS = {
 
 SIGNATURE = """Best,
 
-Abi Lawrence
+Zephyr William
 Team LeadGen
 Merit-Bold Lead Generation
 128 City Road, London, United Kingdom, EC1V 2NX"""
@@ -50,7 +50,7 @@ def generate_outreach_email(
     city = prospect_city or "London"
     address = prospect_address or city
 
-    prompt = f"""Write a short cold outreach email from Abi Lawrence at Merit-Bold Lead Generation to a plumbing company.
+    prompt = f"""Write a short cold outreach email from Zephyr William at Merit-Bold Lead Generation to a plumbing company.
 
 Details:
 - Plumber: {plumber_name}
@@ -72,7 +72,7 @@ If you'd prefer not to receive these emails, just reply unsubscribe.
 
 Best,
 
-Abi Lawrence
+Zephyr William
 Team LeadGen
 Merit-Bold Lead Generation
 128 City Road, London, United Kingdom, EC1V 2NX

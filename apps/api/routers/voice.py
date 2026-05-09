@@ -37,7 +37,7 @@ async def handle_keypress(lead_id: int, request: Request, Digits: str = Form(def
                 ).first()
 
                 if prospect and plumber.email:
-                    body = f"<p>Hi {plumber.name},</p><p>As requested, here are the full contact details for the lead:</p><p><strong>{prospect.name}</strong><br>{prospect.address}<br>{prospect.city}<br>Phone: {prospect.phone or 'N/A'}<br>Email: {prospect.email or 'N/A'}<br>Website: {prospect.website or 'N/A'}</p><p>Good luck!</p><p>— Abi Lawrence<br>Merit-Bold Lead Generation</p>"
+                    body = f"<p>Hi {plumber.name},</p><p>As requested, here are the full contact details for the lead:</p><p><strong>{prospect.name}</strong><br>{prospect.address}<br>{prospect.city}<br>Phone: {prospect.phone or 'N/A'}<br>Email: {prospect.email or 'N/A'}<br>Website: {prospect.website or 'N/A'}</p><p>Good luck!</p><p>— Zephyr William<br>Merit-Bold Lead Generation</p>"
                     send_email(plumber.email, "Your lead contact details — Merit-Bold", body)
 
             if log:
