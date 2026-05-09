@@ -9,6 +9,7 @@ from models import OutreachLog
 
 from routers import collect, data, automation, analytics, replies, opportunities, auth, voice, stripe_router
 from routers.automation import run_outreach_job
+from routers import chatbot
 from services.reply_detector import detect_gmail_replies
 from services.reply_followup import send_reply_followups
 from services.deal_detector import detect_and_close_deals
@@ -40,6 +41,7 @@ app.include_router(opportunities.router)
 app.include_router(auth.router)
 app.include_router(voice.router)
 app.include_router(stripe_router.router)
+app.include_router(chatbot.router)
 
 @app.get("/")
 def root():
