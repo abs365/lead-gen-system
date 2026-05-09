@@ -107,10 +107,13 @@ def get_opportunities():
 # --------------------------------------------------------------------------- #
 
 @router.get("/plumbers")
-def get_plumbers():
+def get_plumbers(with_email: bool = False, limit: int = 50, offset: int = 0):
     db = SessionLocal()
     try:
-        return db.query(Plumber).all()
+        query = db.query(Plumber)
+        if with_email:
+            query = query.filter(Plumber.email != None)
+        return query.offset(offset).limit(limit).all()
     finally:
         db.close()
 
