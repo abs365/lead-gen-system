@@ -9,7 +9,7 @@ const plans = [
     price: 49,
     leads: 5,
     description: 'Perfect for small plumbing businesses',
-    features: ['5 verified leads per month', 'Email delivery', 'Reply YES to claim leads'],
+    features: ['5 verified leads per month', 'Email delivery', 'Location matched leads', 'Reply YES to claim leads'],
     color: 'border-gray-600',
     badge: '',
   },
@@ -25,13 +25,23 @@ const plans = [
   },
   {
     id: 'unlimited',
-    name: 'LeadGen Unlimited',
+    name: 'LeadGen Pro Max',
     price: 199,
-    leads: 999,
-    description: 'For large commercial operations',
-    features: ['Unlimited leads per month', 'Dedicated support', 'Follow-up sequences', 'Voice call alerts', 'Reply YES to claim leads'],
+    leads: 50,
+    description: 'For established commercial operations',
+    features: ['50 verified leads per month', 'Dedicated support', 'Follow-up sequences', 'Voice call alerts', 'Reply YES to claim leads'],
     color: 'border-yellow-500',
     badge: 'Best Value',
+  },
+  {
+    id: 'enterprise',
+    name: 'LeadGen Enterprise',
+    price: 349,
+    leads: 100,
+    description: 'For large commercial plumbing companies',
+    features: ['100 verified leads per month', 'Dedicated account manager', 'Priority lead matching', 'Follow-up sequences', 'Voice call alerts', 'Custom reporting'],
+    color: 'border-purple-500',
+    badge: 'Enterprise',
   },
 ];
 
@@ -75,10 +85,11 @@ export default function SubscribePage() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white py-16 px-4">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-4">Get Commercial Plumbing Leads</h1>
-          <p className="text-gray-400 text-lg">Verified leads delivered directly to your inbox. Reply YES to claim.</p>
+          <p className="text-gray-400 text-lg">Verified leads delivered directly to your inbox. Exclusively yours — never shared.</p>
+          <p className="text-green-400 text-sm mt-2">Commercial leads from just £9.80 each — industry average is £25</p>
         </div>
 
         <div className="mb-8 max-w-md mx-auto">
@@ -93,21 +104,26 @@ export default function SubscribePage() {
           {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {plans.map(plan => (
-            <div key={plan.id} className={`bg-gray-900 border-2 ${plan.color} rounded-xl p-6 relative`}>
+            <div key={plan.id} className={`bg-gray-900 border-2 ${plan.color} rounded-xl p-6 relative flex flex-col`}>
               {plan.badge && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full">
+                <span className={`absolute -top-3 left-1/2 -translate-x-1/2 text-white text-xs font-bold px-3 py-1 rounded-full ${
+                  plan.badge === 'Most Popular' ? 'bg-blue-500' :
+                  plan.badge === 'Best Value' ? 'bg-yellow-500 text-gray-900' :
+                  plan.badge === 'Enterprise' ? 'bg-purple-600' : 'bg-gray-600'
+                }`}>
                   {plan.badge}
                 </span>
               )}
               <h2 className="text-xl font-bold mb-1">{plan.name}</h2>
               <p className="text-gray-400 text-sm mb-4">{plan.description}</p>
-              <div className="mb-6">
+              <div className="mb-2">
                 <span className="text-4xl font-bold">£{plan.price}</span>
                 <span className="text-gray-400">/month</span>
               </div>
-              <ul className="space-y-2 mb-8">
+              <p className="text-green-400 text-xs mb-6">£{(plan.price / plan.leads).toFixed(2)} per lead</p>
+              <ul className="space-y-2 mb-8 flex-1">
                 {plan.features.map((f, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm text-gray-300">
                     <span className="text-green-400">✓</span> {f}
@@ -117,7 +133,7 @@ export default function SubscribePage() {
               <button
                 onClick={() => handleSubscribe(plan.id)}
                 disabled={loading === plan.id}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition"
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition mt-auto"
               >
                 {loading === plan.id ? 'Loading...' : 'Get Started'}
               </button>
