@@ -107,16 +107,15 @@ def get_opportunities():
 # --------------------------------------------------------------------------- #
 
 @router.get("/plumbers")
-def get_plumbers(with_email: bool = False, limit: int = 50, offset: int = 0):
+def get_plumbers(with_email: bool = False, limit: int = 100, offset: int = 0):
     db = SessionLocal()
     try:
         query = db.query(Plumber)
         if with_email:
-            query = query.filter(Plumber.email != None)
+            query = query.filter(Plumber.email.isnot(None)).filter(Plumber.email != "")
         return query.offset(offset).limit(limit).all()
     finally:
         db.close()
-
 
 # --------------------------------------------------------------------------- #
 # CREATE TEST PLUMBER
@@ -581,10 +580,6 @@ def wipe_all_plumber_emails(db: Session = Depends(get_db)):
     )
     db.commit()
     return {"success": True, "wiped": wiped}
-
-# Add this endpoint to apps/api/routers/collect.py
-# The import is already at the top of your file:
-# from services.plumber_email_collector import collect_plumber_emails
 
 @router.get("/collect-plumber-emails", dependencies=[Depends(require_api_key)])
 def collect_plumber_emails_endpoint(limit: int = 100, db: Session = Depends(get_db)):
