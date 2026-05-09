@@ -238,3 +238,28 @@ class Settings(Base):
 
     created_at = Column(DateTime, default=_utcnow)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
+
+"""
+Add this to models.py — the LeadDelivery table tracks which leads
+have been sent to which plumber. This prevents duplicate delivery.
+"""
+
+# Add this import at the top of models.py (already there):
+# from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+
+class LeadDelivery(Base):
+    __tablename__ = "lead_deliveries"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    plumber_id = Column(Integer, ForeignKey("plumbers.id", ondelete="CASCADE"), nullable=False)
+    prospect_id = Column(Integer, ForeignKey("demand_prospects.id", ondelete="CASCADE"), nullable=False)
+
+    plan = Column(String(50))  # basic, pro, unlimited
+    delivered_at = Column(DateTime, default=_utcnow)
+    status = Column(String(50), default="delivered")  # delivered, bounced, clicked
+
+    # Track if plumber viewed/acted on this lead
+    opened = Column(Integer, default=0)
+    contacted = Column(Integer, default=0)  # plumber marked as contacted
+    converted = Column(Integer, default=0)  # plumber got the job
