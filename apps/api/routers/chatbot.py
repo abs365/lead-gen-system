@@ -10,7 +10,7 @@ router = APIRouter(prefix="/chatbot", tags=["chatbot"])
 
 SYSTEM = """You are the MeritBold AI assistant on www.meritbold.com. MeritBold is a UK commercial plumbing lead generation service.
 Key facts:
-- Plans: Basic £49/month (5 leads), Pro £99/month (20 leads), Unlimited £199/month (unlimited leads)
+- Plans: Basic £49/month (5 leads), Pro £99/month (20 leads), Pro Max £199/month (50 leads), Enterprise £349/month (100 leads). Leads from just £3.49 each — industry average is £25.
 - Leads delivered instantly by email after signup, matched by location, never shared between plumbers
 - Subscribe at: https://lead-gen-system-azure.vercel.app/subscribe
 - Contact: outreach@meritbold.com, +44 1322 952157
