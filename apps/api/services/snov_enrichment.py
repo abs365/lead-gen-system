@@ -1,41 +1,43 @@
 """
 Snov.io enrichment service for demand prospects.
-Uses Company Search API to find verified emails by company name.
-Deduplicates by company name to avoid wasting credits.
+Uses v2 domain-emails-with-info API to find emails by domain.
 """
 import os
 import re
 import logging
 import requests
 from datetime import datetime
+from urllib.parse import urlparse
 from sqlalchemy.orm import Session
 from models import DemandProspect, OutreachLog
 
 logger = logging.getLogger(__name__)
 
 SNOV_TOKEN_URL = "https://api.snov.io/v1/oauth/access_token"
-SNOV_DOMAIN_SEARCH_URL = "https://api.snov.io/v2/domain-emails-with-info"
-SNOV_COMPANY_SEARCH_URL = "https://api.snov.io/v1/get-company-profile-by-name"
-SNOV_ADD_DOMAIN_URL = "https://api.snov.io/v1/add-emails-from-domain"
-SNOV_GET_DOMAIN_URL = "https://api.snov.io/v1/get-emails-from-domain"
+SNOV_DOMAIN_URL = "https://api.snov.io/v2/domain-emails-with-info"
+SNOV_COMPANY_URL = "https://api.snov.io/v1/get-company-profile-by-domain"
 
 CLIENT_ID = os.getenv("SNOV_CLIENT_ID", "5521b7e25624003db25ce351f5a3b67b")
 CLIENT_SECRET = os.getenv("SNOV_CLIENT_SECRET", "cac595c12884d987add46ccdffa9b53c")
 
-JUNK_EMAIL_PATTERNS = [
+JUNK_PATTERNS = [
     "example.", "test@", "noreply", "no-reply", "placeholder",
-    "domain.com", "yourname", "user@", "admin@admin",
-    "info@info", "none@", "null@",
+    "domain.com", "user@", "admin@admin", "info@info", "none@",
 ]
 
 SKIP_DOMAINS = [
     "facebook.com", "twitter.com", "instagram.com", "linkedin.com",
     "youtube.com", "google.com", "yell.com", "checkatrade.com",
-    "companieshouse.gov.uk", "gov.uk", "hmrc.gov.uk",
+    "companieshouse.gov.uk", "gov.uk",
+]
+
+PRIORITY_PREFIXES = [
+    "info", "contact", "hello", "enquiries", "enquiry",
+    "sales", "admin", "bookings", "reservations", "manager",
 ]
 
 
-def _get_access_token() -> str | None:
+def _get_token() -> str | None:
     try:
         resp = requests.post(SNOV_TOKEN_URL, data={
             "grant_type": "client_credentials",
@@ -44,10 +46,10 @@ def _get_access_token() -> str | None:
         }, timeout=10)
         if resp.status_code == 200:
             return resp.json().get("access_token")
-        logger.error(f"Snov.io token error: {resp.status_code} {resp.text}")
+        logger.error(f"Snov token error: {resp.status_code}")
         return None
     except Exception as e:
-        logger.error(f"Snov.io token request failed: {e}")
+        logger.error(f"Snov token failed: {e}")
         return None
 
 
@@ -63,20 +65,18 @@ def _is_valid_email(email: str) -> bool:
         return False
     if any(s in domain for s in SKIP_DOMAINS):
         return False
-    if any(p in email for p in JUNK_EMAIL_PATTERNS):
-        return False
-    if re.search(r'\d+\.\d+', domain):
+    if any(p in email for p in JUNK_PATTERNS):
         return False
     return True
 
 
-def _extract_domain_from_website(website: str) -> str | None:
+def _extract_domain(website: str) -> str | None:
     if not website:
         return None
     try:
-        from urllib.parse import urlparse
-        parsed = urlparse(website)
-        domain = parsed.netloc.lower().lstrip("www.")
+        if not website.startswith("http"):
+            website = "https://" + website
+        domain = urlparse(website).netloc.lower().lstrip("www.")
         if domain and "." in domain and not any(s in domain for s in SKIP_DOMAINS):
             return domain
     except Exception:
@@ -84,58 +84,41 @@ def _extract_domain_from_website(website: str) -> str | None:
     return None
 
 
-def _search_domain_emails(token: str, domain: str) -> list[str]:
-    """Search for emails on a domain using Snov.io."""
+def _get_emails_for_domain(token: str, domain: str) -> list[str]:
     try:
-        # Step 1: Add domain to search queue
-        resp = requests.post(SNOV_ADD_DOMAIN_URL, data={
+        resp = requests.get(SNOV_DOMAIN_URL, params={
             "access_token": token,
             "domain": domain,
             "type": "all",
-            "limit": 5,
+            "limit": 10,
         }, timeout=15)
 
         if resp.status_code != 200:
+            logger.error(f"Snov v2 error {resp.status_code} for {domain}")
             return []
 
-        # Step 2: Get results
-        resp2 = requests.get(SNOV_GET_DOMAIN_URL, params={
-            "access_token": token,
-            "domain": domain,
-            "type": "all",
-            "limit": 5,
-        }, timeout=15)
-
-        if resp2.status_code != 200:
-            return []
-
-        emails_data = resp2.json().get("emails", [])
-        emails = []
-        for item in emails_data:
+        data = resp.json()
+        emails_raw = data.get("emails", [])
+        valid = []
+        for item in emails_raw:
             email = item.get("email", "")
             if _is_valid_email(email):
-                emails.append(email)
-        return emails
+                valid.append(email)
+        return valid
 
     except Exception as e:
-        logger.error(f"Snov domain search error for {domain}: {e}")
+        logger.error(f"Snov domain search failed for {domain}: {e}")
         return []
 
 
 def _pick_best_email(emails: list[str]) -> str | None:
-    """Pick the best email — prefer info/contact/hello over personal."""
     if not emails:
         return None
-
-    priority_prefixes = ["info", "contact", "hello", "enquiries", "enquiry", "sales", "admin"]
-
-    for prefix in priority_prefixes:
+    for prefix in PRIORITY_PREFIXES:
         for email in emails:
             if email.lower().startswith(prefix + "@"):
                 return email
-
-    # Fall back to first valid email
-    return emails[0] if emails else None
+    return emails[0]
 
 
 def _estimate_value(prospect: DemandProspect) -> int:
@@ -151,114 +134,114 @@ def _estimate_value(prospect: DemandProspect) -> int:
     return 150
 
 
-def _clean_company_name(name: str) -> str:
-    """Remove Ltd, Limited, PLC etc for cleaner search."""
+def _clean_name(name: str) -> str:
     suffixes = [
         r'\bLIMITED\b', r'\bLTD\b', r'\bPLC\b', r'\bLLP\b',
-        r'\bLLC\b', r'\bCIC\b', r'\bCIO\b', r'\(.*?\)',
+        r'\bLLC\b', r'\bCIC\b', r'\(.*?\)',
     ]
-    cleaned = name.upper()
-    for suffix in suffixes:
-        cleaned = re.sub(suffix, '', cleaned, flags=re.IGNORECASE)
+    cleaned = name
+    for s in suffixes:
+        cleaned = re.sub(s, '', cleaned, flags=re.IGNORECASE)
     return cleaned.strip().strip('-').strip()
 
 
 def enrich_demand_with_snov(db: Session, limit: int = 25) -> dict:
-    """
-    Enrich demand prospects using Snov.io domain search.
-    Deduplicates by company name to avoid burning credits on duplicates.
-    """
-    token = _get_access_token()
+    token = _get_token()
     if not token:
         return {"success": False, "error": "Failed to get Snov.io access token"}
 
-    # Get prospects that need enrichment
+    # Fetch prospects needing enrichment
     prospects = db.query(DemandProspect).filter(
         DemandProspect.status.in_(["new", "needs_contact"]),
         DemandProspect.email.is_(None),
-    ).limit(limit * 3).all()  # Fetch more to account for deduplication
+    ).limit(limit * 4).all()
 
-    # Deduplicate by cleaned company name — don't hit Snov.io twice for same company
-    seen_names = set()
+    # Deduplicate — don't search same domain or company twice
     seen_domains = set()
-    unique_prospects = []
+    seen_names = set()
+    unique = []
 
     for p in prospects:
-        cleaned = _clean_company_name(p.name or "")
-        domain = _extract_domain_from_website(p.website)
+        name_key = _clean_name(p.name or "").upper()
+        domain = _extract_domain(p.website)
 
-        # Skip if we've already processed this company name or domain
-        if cleaned in seen_names:
-            # Mark as needs_contact so we don't keep retrying
+        if name_key in seen_names:
             p.status = "needs_contact"
             continue
         if domain and domain in seen_domains:
             p.status = "needs_contact"
             continue
 
-        seen_names.add(cleaned)
+        seen_names.add(name_key)
         if domain:
             seen_domains.add(domain)
-        unique_prospects.append(p)
+        unique.append(p)
 
-        if len(unique_prospects) >= limit:
+        if len(unique) >= limit:
             break
 
     db.commit()
 
-    checked = 0
-    enriched = 0
-    no_contact = 0
-    outreach_created = 0
+    checked = enriched = no_contact = outreach_created = 0
 
-    for prospect in unique_prospects:
+    for prospect in unique:
         checked += 1
         email = None
 
-        # Strategy 1: If prospect already has a website, search that domain
-        domain = _extract_domain_from_website(prospect.website)
-
+        # Strategy 1: prospect already has a website
+        domain = _extract_domain(prospect.website)
         if domain:
-            emails = _search_domain_emails(token, domain)
+            emails = _get_emails_for_domain(token, domain)
             email = _pick_best_email(emails)
 
-        # Strategy 2: Try deriving domain from company name via Snov company search
+        # Strategy 2: derive domain from company name using Google Places
         if not email:
             try:
-                company_name = _clean_company_name(prospect.name or "")
-                resp = requests.post(SNOV_COMPANY_SEARCH_URL, data={
-                    "access_token": token,
-                    "name": company_name,
-                }, timeout=15)
-
-                if resp.status_code == 200:
-                    data = resp.json()
-                    # Snov returns company profile with website
-                    website = data.get("webSite") or data.get("website")
-                    if website:
-                        domain = _extract_domain_from_website(website)
-                        if domain and domain not in seen_domains:
-                            seen_domains.add(domain)
-                            # Update prospect website
-                            prospect.website = website
-                            emails = _search_domain_emails(token, domain)
-                            email = _pick_best_email(emails)
+                google_key = os.getenv("GOOGLE_API_KEY")
+                if google_key:
+                    query = f"{_clean_name(prospect.name)} {prospect.city or ''} UK"
+                    gr = requests.get(
+                        "https://maps.googleapis.com/maps/api/place/textsearch/json",
+                        params={"query": query, "key": google_key},
+                        timeout=10,
+                    )
+                    if gr.status_code == 200:
+                        results = gr.json().get("results", [])
+                        if results:
+                            place_id = results[0].get("place_id")
+                            if place_id:
+                                dr = requests.get(
+                                    "https://maps.googleapis.com/maps/api/place/details/json",
+                                    params={
+                                        "place_id": place_id,
+                                        "fields": "website",
+                                        "key": google_key,
+                                    },
+                                    timeout=10,
+                                )
+                                if dr.status_code == 200:
+                                    website = dr.json().get("result", {}).get("website")
+                                    domain = _extract_domain(website)
+                                    if domain and domain not in seen_domains:
+                                        seen_domains.add(domain)
+                                        prospect.website = website
+                                        emails = _get_emails_for_domain(token, domain)
+                                        email = _pick_best_email(emails)
             except Exception as e:
-                logger.error(f"Snov company search error for {prospect.name}: {e}")
+                logger.error(f"Google Places fallback failed for {prospect.name}: {e}")
 
-        # Save results
+        # Save
         if email and _is_valid_email(email):
             prospect.email = email
             prospect.status = "enriched"
             enriched += 1
 
-            # Create outreach log if not already exists
             existing = db.query(OutreachLog).filter(
                 OutreachLog.email == email
             ).first()
 
             if not existing:
-                outreach = OutreachLog(
+                db.add(OutreachLog(
                     email=email,
                     subject=f"Commercial plumbing opportunity - {prospect.name}",
                     status="new",
@@ -266,11 +249,10 @@ def enrich_demand_with_snov(db: Session, limit: int = 25) -> dict:
                     estimated_value=_estimate_value(prospect),
                     close_probability=35,
                     sent_at=None,
-                )
-                db.add(outreach)
+                ))
                 outreach_created += 1
 
-            logger.info(f"Enriched {prospect.name} -> {email}")
+            logger.info(f"Enriched: {prospect.name} -> {email}")
         else:
             prospect.status = "needs_contact"
             no_contact += 1
