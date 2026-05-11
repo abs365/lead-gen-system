@@ -287,6 +287,13 @@ def enrich_demand_endpoint(db: Session = Depends(get_db)):
     result = enrich_demand_prospects(db, limit=25)
     return result
 
+@router.get("/enrich-demand-snov", dependencies=[Depends(require_api_key)])
+def enrich_demand_snov_endpoint(limit: int = 25, db: Session = Depends(get_db)):
+    """Enrich demand prospects using Snov.io verified email lookup."""
+    from services.snov_enrichment import enrich_demand_with_snov
+    result = enrich_demand_with_snov(db, limit=limit)
+    return result
+
 @router.get("/planning-data")
 def collect_planning_data_endpoint(db: Session = Depends(get_db)):
     from services.planning_data import collect_planning_applications
