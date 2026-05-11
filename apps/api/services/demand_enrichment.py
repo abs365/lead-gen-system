@@ -147,7 +147,7 @@ def _extract_email_from_website(url: str | None) -> str | None:
 
 def enrich_demand_prospects(db: Session, limit: int = 25) -> dict:
     prospects = db.query(DemandProspect).filter(
-        DemandProspect.status != "enriched"
+        DemandProspect.status.in_(["new", "needs_contact"])
     ).limit(limit).all()
 
     checked = 0
