@@ -15,7 +15,6 @@ logger = logging.getLogger(__name__)
 
 SNOV_TOKEN_URL = "https://api.snov.io/v1/oauth/access_token"
 SNOV_DOMAIN_URL = "https://api.snov.io/v2/domain-emails-with-info"
-SNOV_COMPANY_URL = "https://api.snov.io/v1/get-company-profile-by-domain"
 
 CLIENT_ID = os.getenv("SNOV_CLIENT_ID", "5521b7e25624003db25ce351f5a3b67b")
 CLIENT_SECRET = os.getenv("SNOV_CLIENT_SECRET", "cac595c12884d987add46ccdffa9b53c")
@@ -145,18 +144,107 @@ def _clean_name(name: str) -> str:
     return cleaned.strip().strip('-').strip()
 
 
+def find_prospect_websites(db: Session, limit: int = 50) -> dict:
+    """
+    Step 1 of enrichment pipeline.
+    Uses Google Places to find websites for prospects that have none.
+    Run this before enrich_demand_with_snov.
+    """
+    google_key = os.getenv("GOOGLE_API_KEY")
+    if not google_key:
+        return {"success": False, "error": "GOOGLE_API_KEY not set"}
+
+    prospects = db.query(DemandProspect).filter(
+        DemandProspect.status.in_(["new", "needs_contact"]),
+        DemandProspect.website.is_(None),
+        DemandProspect.email.is_(None),
+    ).limit(limit).all()
+
+    found = 0
+    not_found = 0
+
+    for prospect in prospects:
+        try:
+            name = _clean_name(prospect.name or "")
+            city = prospect.city or "UK"
+            query = f"{name} {city} UK"
+
+            gr = requests.get(
+                "https://maps.googleapis.com/maps/api/place/textsearch/json",
+                params={"query": query, "key": google_key},
+                timeout=10,
+            )
+
+            if gr.status_code != 200:
+                not_found += 1
+                continue
+
+            results = gr.json().get("results", [])
+            if not results:
+                prospect.status = "needs_contact"
+                not_found += 1
+                continue
+
+            place_id = results[0].get("place_id")
+            if not place_id:
+                not_found += 1
+                continue
+
+            dr = requests.get(
+                "https://maps.googleapis.com/maps/api/place/details/json",
+                params={
+                    "place_id": place_id,
+                    "fields": "website,formatted_phone_number",
+                    "key": google_key,
+                },
+                timeout=10,
+            )
+
+            if dr.status_code != 200:
+                not_found += 1
+                continue
+
+            result = dr.json().get("result", {})
+            website = result.get("website")
+            phone = result.get("formatted_phone_number")
+
+            if website:
+                domain = _extract_domain(website)
+                if domain and not any(s in domain for s in SKIP_DOMAINS):
+                    prospect.website = website
+                    if phone and not prospect.phone:
+                        prospect.phone = phone
+                    prospect.updated_at = datetime.utcnow()
+                    found += 1
+                    continue
+
+            not_found += 1
+
+        except Exception as e:
+            logger.error(f"Google Places website finder error for {prospect.name}: {e}")
+            not_found += 1
+            continue
+
+    db.commit()
+
+    return {
+        "success": True,
+        "found_websites": found,
+        "not_found": not_found,
+        "total_checked": found + not_found,
+    }
+
+
 def enrich_demand_with_snov(db: Session, limit: int = 25) -> dict:
     token = _get_token()
     if not token:
         return {"success": False, "error": "Failed to get Snov.io access token"}
 
-    # Fetch prospects needing enrichment
     prospects = db.query(DemandProspect).filter(
         DemandProspect.status.in_(["new", "needs_contact"]),
         DemandProspect.email.is_(None),
     ).limit(limit * 4).all()
 
-    # Deduplicate — don't search same domain or company twice
     seen_domains = set()
     seen_names = set()
     unique = []
@@ -188,13 +276,11 @@ def enrich_demand_with_snov(db: Session, limit: int = 25) -> dict:
         checked += 1
         email = None
 
-        # Strategy 1: prospect already has a website
         domain = _extract_domain(prospect.website)
         if domain:
             emails = _get_emails_for_domain(token, domain)
             email = _pick_best_email(emails)
 
-        # Strategy 2: derive domain from company name using Google Places
         if not email:
             try:
                 google_key = os.getenv("GOOGLE_API_KEY")
@@ -230,7 +316,6 @@ def enrich_demand_with_snov(db: Session, limit: int = 25) -> dict:
             except Exception as e:
                 logger.error(f"Google Places fallback failed for {prospect.name}: {e}")
 
-        # Save
         if email and _is_valid_email(email):
             prospect.email = email
             prospect.status = "enriched"
