@@ -13,9 +13,21 @@ CITIES = [
     "Wolverhampton", "Salford",
 ]
 
+# Expanded business types — high plumbing need
 BUSINESS_TYPES = [
+    # Food & hospitality (original)
     "restaurant", "cafe", "takeaway", "hotel",
+    # Property & facilities (original)
     "property maintenance", "facilities management", "landlord",
+    # NEW — high commercial plumbing demand
+    "care home", "nursing home", "residential home",
+    "pub", "bar", "nightclub",
+    "gym", "leisure centre", "sports centre",
+    "school", "academy", "college",
+    "office building", "commercial property",
+    "serviced apartments", "guest house",
+    "laundry", "laundrette",
+    "car wash", "garage",
 ]
 
 
@@ -30,13 +42,23 @@ def _build_search_terms():
 def _score_company(title: str, description: str) -> int:
     text = f"{title} {description}".lower()
     score = 0
-    if "restaurant" in text: score += 35
-    if "cafe" in text or "coffee" in text: score += 30
-    if "takeaway" in text: score += 30
-    if "hotel" in text: score += 35
-    if "property" in text: score += 25
-    if "maintenance" in text: score += 25
-    if "facilities" in text: score += 25
+    # High value
+    if "hotel" in text: score += 40
+    if "care home" in text or "nursing home" in text: score += 40
+    if "gym" in text or "leisure" in text: score += 35
+    if "school" in text or "academy" in text or "college" in text: score += 35
+    # Medium value
+    if "restaurant" in text: score += 30
+    if "pub" in text or "bar" in text: score += 30
+    if "cafe" in text or "coffee" in text: score += 25
+    if "takeaway" in text: score += 25
+    if "serviced apartment" in text or "guest house" in text: score += 30
+    # Maintenance types
+    if "property" in text: score += 20
+    if "maintenance" in text: score += 20
+    if "facilities" in text: score += 20
+    if "office" in text or "commercial" in text: score += 20
+    if "laundry" in text or "laundrette" in text: score += 15
     return min(score, 100)
 
 
@@ -95,7 +117,10 @@ def collect_companies_house(db: Session, max_per_term: int = 10) -> dict:
                 skipped += 1
                 continue
 
-            city = _detect_city(address, title) if _detect_city(address, title) != "Unknown" else city_hint
+            city = _detect_city(address, title)
+            if city == "Unknown":
+                city = city_hint
+
             score = _score_company(title, description)
 
             prospect = DemandProspect(
