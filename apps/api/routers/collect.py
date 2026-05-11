@@ -595,3 +595,9 @@ def collect_plumber_emails_endpoint(limit: int = 100, db: Session = Depends(get_
     Uses Google Places Details API only — no website scraping.
     """
     return collect_plumber_emails(db, limit=limit)
+
+@router.get("/find-prospect-websites", dependencies=[Depends(require_api_key)])
+def find_prospect_websites_endpoint(limit: int = 50, db: Session = Depends(get_db)):
+    """Use Google Places to find websites for prospects that have none."""
+    from services.snov_enrichment import find_prospect_websites
+    return find_prospect_websites(db, limit=limit)
