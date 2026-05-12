@@ -25,6 +25,7 @@ BUSINESS_TYPE_MAP: Dict[str, str] = {
 }
 
 TARGET_CITIES = [
+    # Original 10
     "London",
     "Birmingham",
     "Manchester",
@@ -35,6 +36,22 @@ TARGET_CITIES = [
     "Newcastle",
     "Nottingham",
     "Leicester",
+    # New cities
+    "Glasgow",
+    "Edinburgh",
+    "Cardiff",
+    "Brighton",
+    "Southampton",
+    "Reading",
+    "Oxford",
+    "Cambridge",
+    "Norwich",
+    "Exeter",
+    "Plymouth",
+    "Derby",
+    "Stoke",
+    "Coventry",
+    "Middlesbrough",
 ]
 
 def fetch_london_establishments(
