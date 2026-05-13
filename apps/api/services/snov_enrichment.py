@@ -1,6 +1,7 @@
 """
 Snov.io enrichment service for demand prospects.
 Uses v2 domain-emails-with-info API to find emails by domain.
+No Google Places calls - cost controlled.
 """
 import os
 import re
@@ -146,103 +147,33 @@ def _clean_name(name: str) -> str:
 
 def find_prospect_websites(db: Session, limit: int = 50) -> dict:
     """
-    Step 1 of enrichment pipeline.
-    Uses Google Places to find websites for prospects that have none.
-    Run this before enrich_demand_with_snov.
+    Disabled - Google Places removed due to cost.
+    Returns empty result to avoid breaking existing calls.
     """
-    google_key = os.getenv("GOOGLE_API_KEY")
-    if not google_key:
-        return {"success": False, "error": "GOOGLE_API_KEY not set"}
-
-    prospects = db.query(DemandProspect).filter(
-        DemandProspect.status.in_(["new", "needs_contact"]),
-        DemandProspect.website.is_(None),
-        DemandProspect.email.is_(None),
-    ).limit(limit).all()
-
-    found = 0
-    not_found = 0
-
-    for prospect in prospects:
-        try:
-            name = _clean_name(prospect.name or "")
-            city = prospect.city or "UK"
-            query = f"{name} {city} UK"
-
-            gr = requests.get(
-                "https://maps.googleapis.com/maps/api/place/textsearch/json",
-                params={"query": query, "key": google_key},
-                timeout=10,
-            )
-
-            if gr.status_code != 200:
-                not_found += 1
-                continue
-
-            results = gr.json().get("results", [])
-            if not results:
-                prospect.status = "needs_contact"
-                not_found += 1
-                continue
-
-            place_id = results[0].get("place_id")
-            if not place_id:
-                not_found += 1
-                continue
-
-            dr = requests.get(
-                "https://maps.googleapis.com/maps/api/place/details/json",
-                params={
-                    "place_id": place_id,
-                    "fields": "website,formatted_phone_number",
-                    "key": google_key,
-                },
-                timeout=10,
-            )
-
-            if dr.status_code != 200:
-                not_found += 1
-                continue
-
-            result = dr.json().get("result", {})
-            website = result.get("website")
-            phone = result.get("formatted_phone_number")
-
-            if website:
-                domain = _extract_domain(website)
-                if domain and not any(s in domain for s in SKIP_DOMAINS):
-                    prospect.website = website
-                    if phone and not prospect.phone:
-                        prospect.phone = phone
-                    prospect.updated_at = datetime.utcnow()
-                    found += 1
-                    continue
-
-            not_found += 1
-
-        except Exception as e:
-            logger.error(f"Google Places website finder error for {prospect.name}: {e}")
-            not_found += 1
-            continue
-
-    db.commit()
-
     return {
-        "success": True,
-        "found_websites": found,
-        "not_found": not_found,
-        "total_checked": found + not_found,
+        "success": False,
+        "error": "Google Places disabled - use enrich_demand_with_snov directly",
+        "found_websites": 0,
+        "not_found": 0,
+        "total_checked": 0,
     }
 
 
 def enrich_demand_with_snov(db: Session, limit: int = 25) -> dict:
+    """
+    Enrich demand prospects using Snov.io domain email search.
+    Only processes prospects that already have a website.
+    No Google Places calls.
+    """
     token = _get_token()
     if not token:
         return {"success": False, "error": "Failed to get Snov.io access token"}
 
+    # Only fetch prospects that already have a website
     prospects = db.query(DemandProspect).filter(
         DemandProspect.status.in_(["new", "needs_contact"]),
         DemandProspect.email.is_(None),
+        DemandProspect.website.isnot(None),
     ).limit(limit * 4).all()
 
     seen_domains = set()
@@ -254,21 +185,17 @@ def enrich_demand_with_snov(db: Session, limit: int = 25) -> dict:
         domain = _extract_domain(p.website)
 
         if name_key in seen_names:
-            p.status = "needs_contact"
             continue
         if domain and domain in seen_domains:
-            p.status = "needs_contact"
             continue
 
         seen_names.add(name_key)
         if domain:
             seen_domains.add(domain)
-        unique.append(p)
+            unique.append(p)
 
         if len(unique) >= limit:
             break
-
-    db.commit()
 
     checked = enriched = no_contact = outreach_created = 0
 
@@ -280,41 +207,6 @@ def enrich_demand_with_snov(db: Session, limit: int = 25) -> dict:
         if domain:
             emails = _get_emails_for_domain(token, domain)
             email = _pick_best_email(emails)
-
-        if not email:
-            try:
-                google_key = os.getenv("GOOGLE_API_KEY")
-                if google_key:
-                    query = f"{_clean_name(prospect.name)} {prospect.city or ''} UK"
-                    gr = requests.get(
-                        "https://maps.googleapis.com/maps/api/place/textsearch/json",
-                        params={"query": query, "key": google_key},
-                        timeout=10,
-                    )
-                    if gr.status_code == 200:
-                        results = gr.json().get("results", [])
-                        if results:
-                            place_id = results[0].get("place_id")
-                            if place_id:
-                                dr = requests.get(
-                                    "https://maps.googleapis.com/maps/api/place/details/json",
-                                    params={
-                                        "place_id": place_id,
-                                        "fields": "website",
-                                        "key": google_key,
-                                    },
-                                    timeout=10,
-                                )
-                                if dr.status_code == 200:
-                                    website = dr.json().get("result", {}).get("website")
-                                    domain = _extract_domain(website)
-                                    if domain and domain not in seen_domains:
-                                        seen_domains.add(domain)
-                                        prospect.website = website
-                                        emails = _get_emails_for_domain(token, domain)
-                                        email = _pick_best_email(emails)
-            except Exception as e:
-                logger.error(f"Google Places fallback failed for {prospect.name}: {e}")
 
         if email and _is_valid_email(email):
             prospect.email = email

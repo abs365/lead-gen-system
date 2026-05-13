@@ -57,14 +57,7 @@ def run_pipeline():
     run_get("Collect Demand FSA", "/collect/collect-demand-all-cities")
     run_get("Collect Companies House", "/collect/collect-companies-house")
 
-    # 2. Find websites for prospects that have none (3 cycles x 50)
-    log("--- Finding prospect websites ---")
-    for i in range(3):
-        result = run_get(f"Find Websites (cycle {i+1})", "/collect/find-prospect-websites", {"limit": 50})
-        found = result.get("found_websites", 0)
-        log(f"Cycle {i+1}: found {found} websites")
-
-    # 3. Enrich with Snov.io (3 cycles x 25)
+    # 2. Enrich with Snov.io (3 cycles x 25)
     log("--- Snov.io email enrichment ---")
     for i in range(3):
         result = run_get(f"Snov Enrichment (cycle {i+1})", "/collect/enrich-demand-snov", {"limit": 25})
