@@ -1,7 +1,7 @@
 import requests
 from datetime import datetime
 
-BASE_URL = "https://lead-gen-system-s8n2.onrender.com"
+BASE_URL = "https://leadgen-api-khfd.onrender.com"
 API_KEY = "12B295n305T286s113a151e24"
 LOG_FILE = "pipeline.log"
 TIMEOUT = 180
@@ -76,6 +76,9 @@ def run_pipeline():
 
     # 6. Detect replies
     run_post("Detect Replies", "/automation/detect-replies")
+
+    # 7. Detect bounces and clean bad emails
+    run_post("Detect Bounces", "/automation/detect-bounces")
 
     log("=== DAILY PIPELINE END ===")
 

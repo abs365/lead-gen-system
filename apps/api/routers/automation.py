@@ -93,7 +93,12 @@ def send_match_outreach():
             if not plumber.email:
                 skipped += 1
                 continue
-            if plumber.is_commercial == 0:
+            # Skip known bad domains
+            BAD_DOMAINS = [
+                "swiftemergencyplumber.com",
+                "birminghamemergencyplumberforceheat.co.uk",
+            ]
+            if any(bd in (plumber.email or "") for bd in BAD_DOMAINS):
                 skipped += 1
                 continue
 
@@ -333,3 +338,12 @@ def send_test_email():
     )
 
     return {"status": "test email sent", "to": "blue2gtv@gmail.com"}
+
+# --------------------------------------------------------------------------- #
+# BOUNCE HANDLER
+# --------------------------------------------------------------------------- #
+@router.post("/detect-bounces")
+def detect_bounces_endpoint(db: Session = Depends(get_db)):
+    """Scan inbox for NDR bounce emails and blacklist bad plumber addresses."""
+    from services.bounce_handler import detect_bounces
+    return detect_bounces(db)
