@@ -67,21 +67,24 @@ def send_match_outreach():
             .filter(Match.outreach_sent == 0)
             .filter(Match.match_score >= 60)
             .filter(Plumber.email.isnot(None))
-            .order_by(Match.match_score.desc())
+            .order_by(Match.id.desc())
             .all()
         )
 
-        # Cap at 1 email per plumber per send cycle
-        plumber_counts = {}
-        selected = []
-        for match, demand, plumber in all_matches:
-            count = plumber_counts.get(plumber.id, 0)
-            if count < 1:
-                selected.append((match, demand, plumber))
-                plumber_counts[plumber.id] = count + 1
+        # Cap at 1 email per plumber AND 3 plumbers per prospect per send cycle
+plumber_counts = {}
+prospect_counts = {}
+selected = []
+for match, demand, plumber in all_matches:
+    plumber_count = plumber_counts.get(plumber.id, 0)
+    prospect_count = prospect_counts.get(demand.id, 0)
+    if plumber_count < 1 and prospect_count < 3:
+        selected.append((match, demand, plumber))
+        plumber_counts[plumber.id] = plumber_count + 1
+        prospect_counts[demand.id] = prospect_count + 1
 
-        # Hard limit per send cycle
-        MAX_PER_CYCLE = 5
+# Hard limit per send cycle
+MAX_PER_CYCLE = 50
         cycle_count = 0
 
         for match, demand, plumber in selected:
