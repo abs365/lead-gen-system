@@ -97,24 +97,26 @@ def detect_gmail_replies(db: Session) -> dict:
                 subject = msg.get("subject", "") or ""
                 body = msg.get("body", {}).get("content", "") or ""
                 body_clean = re.sub(r"<[^>]+>", " ", body).strip()
+                # Only check first 200 chars for stop signals - ignore quoted text and signatures
                 body_lower = body_clean.lower().strip()
+                body_first_line = body_clean.split('\n')[0].lower().strip()[:200]
                 subject_lower = subject.lower().strip()
 
                 if not sender_email or sender_email == SENDER_EMAIL.lower():
                     continue
 
                 is_stop = (
-                    body_lower.strip() == "stop" or
-                    body_lower.startswith("stop") or
-                    "unsubscribe" in body_lower or
-                    "remove me" in body_lower or
-                    "please stop" in body_lower or
-                    "stop sending" in body_lower or
-                    "stop emailing" in body_lower or
-                    "excessive" in body_lower or
-                    "do not contact" in body_lower or
+                    body_first_line.strip() == "stop" or
+                    body_first_line.startswith("stop") or
+                    "unsubscribe" in body_first_line or
+                    "remove me" in body_first_line or
+                    "please stop" in body_first_line or
+                    "stop sending" in body_first_line or
+                    "stop emailing" in body_first_line or
+                    "excessive" in body_first_line or
+                    "do not contact" in body_first_line or
                     "stop" in subject_lower
-                )
+)
 
                 is_yes_reply = (
     body_lower.strip() in ["yes", "yes.", "yes!"] or
