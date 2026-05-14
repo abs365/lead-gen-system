@@ -116,13 +116,13 @@ def detect_gmail_replies(db: Session) -> dict:
                     "excessive" in body_first_line or
                     "do not contact" in body_first_line or
                     "stop" in subject_lower
-)
+                )
 
                 is_yes_reply = (
-    body_lower.strip() in ["yes", "yes.", "yes!"] or
-    body_lower.startswith("yes")
-)
-if is_stop and not is_yes_reply:
+                    body_lower.strip() in ["yes", "yes.", "yes!"] or
+                    body_lower.startswith("yes")
+                )
+                if is_stop and not is_yes_reply:
                     # Only process once per email address
                     if sender_email not in processed_emails:
                         hard_unsubscribe(db, sender_email)
