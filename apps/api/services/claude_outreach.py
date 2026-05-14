@@ -1,3 +1,7 @@
+"""
+Claude-powered outreach email builder.
+Detects tender vs commercial prospects and builds appropriate emails.
+"""
 import os
 import requests
 
@@ -12,16 +16,22 @@ BUSINESS_TYPE_HINTS = {
     "facilities": "facilities management company",
     "property maintenance": "property maintenance company",
     "maintenance": "property maintenance company",
+    "care home": "care home",
+    "nursing home": "nursing home",
+    "pub": "pub or bar",
+    "gym": "gym or leisure centre",
+    "school": "school or academy",
+    "office": "commercial office building",
 }
 
-SIGNATURE = """Best,
+SIGNATURE = """Best regards,
 
 Zephyr William
 Team LeadGen
 Merit-Bold Lead Generation
 128 City Road, London, United Kingdom, EC1V 2NX"""
 
-FOOTER = "<p style='font-size:11px;color:#999;'>This email was sent under UK PECR legitimate interest provisions. To unsubscribe, reply with the word UNSUBSCRIBE and we will remove you immediately.</p>"
+FOOTER = "<p style='font-size:11px;color:#999;'>This email was sent under UK PECR legitimate interest provisions. To unsubscribe, reply UNSUBSCRIBE and we will remove you immediately.</p>"
 
 
 def _get_business_type(name: str, category: str) -> str:
@@ -34,6 +44,105 @@ def _get_business_type(name: str, category: str) -> str:
         if keyword in cat:
             return label
     return "commercial property"
+
+
+def _is_tender(category: str, source: str, score_breakdown: str) -> bool:
+    """Detect if this is a Contracts Finder tender prospect."""
+    cat = (category or "").lower()
+    src = (source or "").lower()
+    breakdown = (score_breakdown or "").lower()
+    return (
+        cat == "tender" or
+        src == "contracts_finder" or
+        "contracts_finder" in breakdown
+    )
+
+
+def _parse_tender_details(score_breakdown: str) -> dict:
+    """Extract value and deadline from score_breakdown field."""
+    details = {"value": "", "deadline": ""}
+    if not score_breakdown:
+        return details
+    parts = score_breakdown.split("|")
+    for part in parts:
+        part = part.strip()
+        if part.startswith("£"):
+            details["value"] = part
+        elif part.startswith("Deadline:"):
+            details["deadline"] = part.replace("Deadline:", "").strip()
+    return details
+
+
+def generate_tender_email(
+    plumber_name: str,
+    tender_name: str,
+    tender_city: str,
+    tender_address: str,
+    tender_value: str,
+    tender_deadline: str,
+) -> str | None:
+    if not ANTHROPIC_API_KEY:
+        return None
+
+    city = tender_city or "UK"
+    value_str = f"worth {tender_value}" if tender_value else ""
+    deadline_str = f"closing {tender_deadline}" if tender_deadline else "with an upcoming deadline"
+
+    prompt = f"""Write a short cold outreach email from Zephyr William at Merit-Bold Lead Generation to a plumbing company about a real public sector tender.
+
+Details:
+- Plumber: {plumber_name}
+- Tender: {tender_name}
+- Location: {tender_address}, {city}
+- Contract value: {tender_value or 'not specified'}
+- Deadline: {tender_deadline or 'upcoming'}
+
+Use this exact format:
+
+Hi {plumber_name},
+
+We've identified a public sector tender in your area that may be a good fit for your business.
+
+The contract is for [brief description of work] in [area], {value_str} and {deadline_str}.
+
+If you'd like the full tender details including the contact name and how to apply, reply YES and I'll send them over straight away.
+
+If you'd prefer not to receive these emails, just reply UNSUBSCRIBE.
+
+Best regards,
+
+Zephyr William
+Team LeadGen
+Merit-Bold Lead Generation
+128 City Road, London, United Kingdom, EC1V 2NX
+
+Rules:
+- Use the plumber's actual name
+- Keep it under 100 words in the body
+- Sound natural and direct, not salesy
+- The value and deadline create urgency — use them
+- No extra commentary, just the email body"""
+
+    try:
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": ANTHROPIC_API_KEY,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+            json={
+                "model": "claude-haiku-4-5-20251001",
+                "max_tokens": 400,
+                "messages": [{"role": "user", "content": prompt}],
+            },
+            timeout=15,
+        )
+        if response.status_code != 200:
+            return None
+        return response.json()["content"][0]["text"].strip()
+    except Exception:
+        return None
 
 
 def generate_outreach_email(
@@ -58,7 +167,7 @@ Details:
 - Business type: {business_type}
 - Location: {address}, {city}
 
-Use this exact format and structure:
+Use this exact format:
 
 Hi {plumber_name},
 
@@ -68,9 +177,9 @@ We recently identified a [business type] in [area of city or postcode district o
 
 If you'd like the full contact details including business name and address, reply YES and I'll send them over.
 
-If you'd prefer not to receive these emails, just reply unsubscribe.
+If you'd prefer not to receive these emails, just reply UNSUBSCRIBE.
 
-Best,
+Best regards,
 
 Zephyr William
 Team LeadGen
@@ -94,18 +203,13 @@ Rules:
             json={
                 "model": "claude-haiku-4-5-20251001",
                 "max_tokens": 400,
-                "messages": [
-                    {"role": "user", "content": prompt}
-                ],
+                "messages": [{"role": "user", "content": prompt}],
             },
             timeout=15,
         )
-
         if response.status_code != 200:
             return None
-
         return response.json()["content"][0]["text"].strip()
-
     except Exception:
         return None
 
@@ -116,23 +220,51 @@ def build_email_body(
     prospect_category: str,
     prospect_city: str,
     prospect_address: str,
+    prospect_source: str = "",
+    score_breakdown: str = "",
 ) -> str:
     city = prospect_city or "London"
-    business_type = _get_business_type(prospect_name, prospect_category)
     address = prospect_address or city
 
-    claude_body = generate_outreach_email(
-        plumber_name=plumber_name,
-        prospect_name=prospect_name,
-        prospect_category=prospect_category,
-        prospect_city=city,
-        prospect_address=address,
-    )
+    # Route to tender email if this is a Contracts Finder tender
+    if _is_tender(prospect_category, prospect_source, score_breakdown):
+        tender_details = _parse_tender_details(score_breakdown)
+        body_text = generate_tender_email(
+            plumber_name=plumber_name,
+            tender_name=prospect_name,
+            tender_city=city,
+            tender_address=address,
+            tender_value=tender_details["value"],
+            tender_deadline=tender_details["deadline"],
+        )
+        if not body_text:
+            # Fallback tender email
+            details = _parse_tender_details(score_breakdown)
+            value_str = f"worth {details['value']}" if details['value'] else ""
+            deadline_str = f"closing {details['deadline']}" if details['deadline'] else "with an upcoming deadline"
+            body_text = f"""Hi {plumber_name or 'there'},
 
-    if claude_body:
-        body_content = claude_body
+We've identified a public sector tender in your area that may be a good fit for your business.
+
+The contract is for work in {city}, {value_str} and {deadline_str}.
+
+If you'd like the full tender details including the contact name and how to apply, reply YES and I'll send them over straight away.
+
+If you'd prefer not to receive these emails, just reply UNSUBSCRIBE.
+
+{SIGNATURE}"""
     else:
-        body_content = f"""Hi {plumber_name or 'there'},
+        # Standard commercial prospect email
+        body_text = generate_outreach_email(
+            plumber_name=plumber_name,
+            prospect_name=prospect_name,
+            prospect_category=prospect_category,
+            prospect_city=city,
+            prospect_address=address,
+        )
+        if not body_text:
+            business_type = _get_business_type(prospect_name, prospect_category)
+            body_text = f"""Hi {plumber_name or 'there'},
 
 We help connect plumbing companies with commercial property leads in {city}.
 
@@ -140,9 +272,9 @@ We recently identified a {business_type} in {city} that may need commercial plum
 
 If you'd like the full contact details including business name and address, reply YES and I'll send them over.
 
-If you'd prefer not to receive these emails, just reply unsubscribe.
+If you'd prefer not to receive these emails, just reply UNSUBSCRIBE.
 
 {SIGNATURE}"""
 
-    body_html = f"<p>{body_content.replace(chr(10), '</p><p>')}</p><br>{FOOTER}"
+    body_html = f"<p>{body_text.replace(chr(10), '</p><p>')}</p><br>{FOOTER}"
     return body_html

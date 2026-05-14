@@ -115,6 +115,8 @@ def send_match_outreach():
                     prospect_category=demand.category,
                     prospect_city=demand.city,
                     prospect_address=demand.address,
+                    prospect_source=demand.source or "",
+                    score_breakdown=demand.score_breakdown or "",
                 )
 
                 send_email(
