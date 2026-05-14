@@ -151,6 +151,66 @@ def detect_gmail_replies(db: Session) -> dict:
                 lead.lead_score = calculate_lead_score(lead)
                 matched_replies += 1
 
+                # AUTO-REPLY: Send prospect details if YES reply
+                is_yes = (
+                    body_lower.strip() in ["yes", "yes.", "yes!"] or
+                    body_lower.startswith("yes") or
+                    "interested" in body_lower or
+                    "send details" in body_lower or
+                    "send me" in body_lower or
+                    "please send" in body_lower
+                )
+                if is_yes and not lead.auto_replied:
+                    try:
+                        # Find the match for this plumber
+                        plumber = db.query(Plumber).filter(
+                            Plumber.email == sender_email
+                        ).first()
+                        if plumber:
+                            from models import Match, DemandProspect
+                            match = (
+                                db.query(Match, DemandProspect)
+                                .join(DemandProspect, Match.demand_prospect_id == DemandProspect.id)
+                                .filter(Match.plumber_id == plumber.id)
+                                .filter(Match.outreach_sent == 1)
+                                .order_by(Match.id.desc())
+                                .first()
+                            )
+                            if match:
+                                match_obj, prospect = match
+                                prospect_details = f"""Hi,
+
+Thanks for getting back to us!
+
+Here are the details for the commercial lead we identified:
+
+Business: {prospect.name}
+Type: {prospect.category or 'Commercial premises'}
+Address: {prospect.address or prospect.city}
+City: {prospect.city}
+
+We recommend reaching out directly and mentioning you were referred through MeritBold.
+
+If this lead converts to a job, please let us know so we can keep sending you relevant opportunities in your area.
+
+Best,
+
+Zephyr William
+Team LeadGen
+Merit-Bold Lead Generation
+128 City Road, London, United Kingdom, EC1V 2NX"""
+
+                                from utils.email import send_email
+                                send_email(
+                                    to_email=sender_email,
+                                    subject=f"Re: {subject}",
+                                    body=f"<p>{prospect_details.replace(chr(10), '</p><p>')}</p>"
+                                )
+                                lead.auto_replied = 1
+                                lead.status = "deal_sent"
+                    except Exception as e:
+                        pass
+
             except Exception:
                 continue
 
