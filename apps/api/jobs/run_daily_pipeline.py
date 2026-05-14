@@ -56,6 +56,7 @@ def run_pipeline():
     # 1. Collect fresh demand prospects
     run_get("Collect Demand FSA", "/collect/collect-demand-all-cities")
     run_get("Collect Companies House", "/collect/collect-companies-house")
+    run_get("Collect Contracts Finder", "/collect/collect-contracts-finder", {"days_back": 2})
 
     # 2. Enrich with Snov.io (3 cycles x 25)
     log("--- Snov.io email enrichment ---")
@@ -64,16 +65,16 @@ def run_pipeline():
         enriched = result.get("enriched", 0)
         log(f"Cycle {i+1}: enriched {enriched} emails")
 
-    # 4. Score all demand prospects
+    # 3. Score all demand prospects
     run_get("Score Demand", "/collect/score-demand")
 
-    # 5. Run matching engine
+    # 4. Run matching engine
     run_get("Run Matching", "/collect/run-matching-engine")
 
-    # 6. Send outreach emails
+    # 5. Send outreach emails
     run_post("Send Outreach", "/automation/send-match-outreach")
 
-    # 7. Detect replies
+    # 6. Detect replies
     run_post("Detect Replies", "/automation/detect-replies")
 
     log("=== DAILY PIPELINE END ===")

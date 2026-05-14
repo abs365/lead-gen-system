@@ -601,3 +601,9 @@ def find_prospect_websites_endpoint(limit: int = 50, db: Session = Depends(get_d
     """Use Google Places to find websites for prospects that have none."""
     from services.snov_enrichment import find_prospect_websites
     return find_prospect_websites(db, limit=limit)
+
+@router.get("/collect-contracts-finder", dependencies=[Depends(require_api_key)])
+def collect_contracts_finder_endpoint(days_back: int = 2, db: Session = Depends(get_db)):
+    """Collect live UK public sector plumbing/maintenance tenders from Contracts Finder."""
+    from services.contracts_finder import collect_contracts_finder
+    return collect_contracts_finder(db, days_back=days_back)
