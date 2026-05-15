@@ -102,8 +102,9 @@ def call_interested_plumbers(db: Session) -> dict:
 
     for log in logs:
         try:
+            # Look up plumber by email since OutreachLog has no plumber_id
             plumber = db.query(Plumber).filter(
-                Plumber.id == log.plumber_id
+                Plumber.email == log.email
             ).first()
 
             if not plumber or not plumber.phone:
@@ -144,7 +145,7 @@ def call_interested_plumbers(db: Session) -> dict:
             else:
                 skipped += 1
 
-        except Exception:
+        except Exception as e:
             skipped += 1
             continue
 
