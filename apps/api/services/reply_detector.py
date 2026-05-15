@@ -156,6 +156,39 @@ def detect_gmail_replies(db: Session) -> dict:
                     lead.replied_at = datetime.utcnow()
                 lead.lead_score = calculate_lead_score(lead)
                 matched_replies += 1
+                # Auto-trigger voice call when plumber replies YES
+                try:
+                    from services.voice_call import make_outbound_call
+                    from models import Match, DemandProspect
+                    plumber = db.query(Plumber).filter(
+                        Plumber.email == sender_email
+                    ).first()
+                    if plumber and plumber.phone:
+                        match = (
+                            db.query(Match)
+                            .filter(
+                                Match.plumber_id == plumber.id,
+                                Match.outreach_sent == 1,
+                            )
+                            .order_by(Match.match_score.desc())
+                            .first()
+                        )
+                        if match:
+                            prospect = db.query(DemandProspect).filter(
+                                DemandProspect.id == match.demand_prospect_id
+                            ).first()
+                            if prospect:
+                                make_outbound_call(
+                                    to_number=plumber.phone,
+                                    plumber_name=plumber.name,
+                                    prospect_name=prospect.name,
+                                    prospect_category=prospect.category,
+                                    prospect_city=prospect.city,
+                                    prospect_address=prospect.address,
+                                    lead_id=lead.id,
+                                )
+                except Exception as e:
+                    logger.error(f"Auto voice call failed: {e}")
 
                 # AUTO-REPLY: Send prospect details if YES reply
                 is_yes = (
