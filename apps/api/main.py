@@ -159,8 +159,8 @@ def start_scheduler():
     scheduler.add_job(run_planning_collection, "cron", hour=7, minute=0)
     scheduler.add_job(run_outreach_job, "interval", hours=24)
     scheduler.add_job(detect_gmail_replies, "interval", minutes=10, args=[None])
-    scheduler.add_job(send_reply_followups, "interval", minutes=15, args=[None])
-    scheduler.add_job(detect_and_close_deals, "interval", minutes=20, args=[None])
+    scheduler.add_job(send_reply_followups, "interval", minutes=15)
+    scheduler.add_job(detect_and_close_deals, "interval", minutes=20)
 
     scheduler.start()
     print("Scheduler started")
