@@ -25,34 +25,13 @@ BUSINESS_TYPE_MAP: Dict[str, str] = {
 }
 
 TARGET_CITIES = [
-    # Original 10
-    "London",
-    "Birmingham",
-    "Manchester",
-    "Leeds",
-    "Sheffield",
-    "Bristol",
-    "Liverpool",
-    "Newcastle",
-    "Nottingham",
-    "Leicester",
-    # New cities
-    "Glasgow",
-    "Edinburgh",
-    "Cardiff",
-    "Brighton",
-    "Southampton",
-    "Reading",
-    "Oxford",
-    "Cambridge",
-    "Norwich",
-    "Exeter",
-    "Plymouth",
-    "Derby",
-    "Stoke",
-    "Coventry",
-    "Middlesbrough",
+    "London", "Birmingham", "Manchester", "Leeds", "Sheffield",
+    "Bristol", "Liverpool", "Newcastle", "Nottingham", "Leicester",
+    "Glasgow", "Edinburgh", "Cardiff", "Brighton", "Southampton",
+    "Reading", "Oxford", "Cambridge", "Norwich", "Exeter",
+    "Plymouth", "Derby", "Stoke", "Coventry", "Middlesbrough",
 ]
+
 
 def fetch_london_establishments(
     category: str = "all",
@@ -62,11 +41,9 @@ def fetch_london_establishments(
     page_size = 100
     type_ids = list(BUSINESS_TYPE_MAP.keys())
     results: List[Dict[str, Any]] = []
-
     for type_id in type_ids:
         fetched = _fetch_page(type_id=type_id, page=page, page_size=page_size, city=city)
         results.extend(fetched)
-
     logger.info("FSA: collected %d prospects (city=%s)", len(results), city)
     return results
 
@@ -111,6 +88,9 @@ def _fetch_page(
     for e in establishments:
         p = _parse_establishment(e, city)
         if p:
+            # Skip records with empty fsa_establishment_id to avoid unique constraint violation
+            if not p.get("fsa_establishment_id"):
+                continue
             parsed.append(p)
     return parsed
 
@@ -141,8 +121,10 @@ def _parse_establishment(raw: Dict[str, Any], city: str = "London") -> Optional[
     except (ValueError, TypeError):
         lat, lng = None, None
 
+    fsa_id = str(raw.get("FHRSID", "")).strip()
+
     return {
-        "fsa_establishment_id": str(raw.get("FHRSID", "")),
+        "fsa_establishment_id": fsa_id,
         "name":            name,
         "category":        category,
         "address":         address,
