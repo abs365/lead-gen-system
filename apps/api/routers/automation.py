@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+﻿from fastapi import APIRouter, Depends
 from services.security import require_api_key
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
@@ -111,7 +111,7 @@ def send_match_outreach():
                 continue
 
             try:
-                subject = f"Commercial work in {demand.city or 'London'} — are you available?"
+                subject = f"Commercial work in {demand.city or 'London'} â€” are you available?"
 
                 from services.claude_outreach import build_email_body
                 body = build_email_body(
@@ -235,7 +235,7 @@ def run_outreach_job():
                     send_email(
                         lead.email,
                         f"Re: {lead.subject}",
-                        "<p>Quick follow-up — happy to send details.</p><br><p>---</p><p>To stop receiving these emails, reply <strong>STOP</strong>.</p>"
+                        "<p>Quick follow-up â€” happy to send details.</p><br><p>---</p><p>To stop receiving these emails, reply <strong>STOP</strong>.</p>"
                     )
                     lead.last_contacted_at = now
                     lead.follow_up_step = 3
@@ -249,7 +249,7 @@ def run_outreach_job():
                     send_email(
                         lead.email,
                         f"Final follow-up: {lead.subject}",
-                        "<p>Last message — let me know if interested.</p><br><p>---</p><p>To stop receiving these emails, reply <strong>STOP</strong>.</p>"
+                        "<p>Last message â€” let me know if interested.</p><br><p>---</p><p>To stop receiving these emails, reply <strong>STOP</strong>.</p>"
                     )
                     lead.last_contacted_at = now
                     lead.follow_up_step = 4
@@ -291,8 +291,8 @@ def follow_up_hot_leads():
                 if lead.status != "interested":
                     continue
 
-                subject = f"Next steps — {lead.subject}"
-                body = f"<p>Hi {lead.email.split('@')[0]},</p><p>Great — thanks for your reply.</p><p>We currently have <strong>live plumbing job opportunities</strong> in your area.</p><p>Reply with your availability or preferred contact number and we will connect you directly.</p><p>— MeritBold Lead Generation<br>outreach@meritbold.com</p><br><p>---</p><p>To stop receiving these emails, reply with the word <strong>STOP</strong>.</p><p style='font-size:11px;color:#999;'>MeritBold, United Kingdom. Sent under UK PECR legitimate interest provisions.</p>"
+                subject = f"Next steps â€” {lead.subject}"
+                body = f"<p>Hi {lead.email.split('@')[0]},</p><p>Great â€” thanks for your reply.</p><p>We currently have <strong>live plumbing job opportunities</strong> in your area.</p><p>Reply with your availability or preferred contact number and we will connect you directly.</p><p>â€” MeritBold Lead Generation<br>outreach@meritbold.com</p><br><p>---</p><p>To stop receiving these emails, reply with the word <strong>STOP</strong>.</p><p style='font-size:11px;color:#999;'>MeritBold, United Kingdom. Sent under UK PECR legitimate interest provisions.</p>"
 
                 send_email(
                     to_email=lead.email,
@@ -320,7 +320,7 @@ def follow_up_hot_leads():
 
 @router.get("/send-test-email")
 def send_test_email():
-    subject = "Commercial work in London — are you available?"
+    subject = "Commercial work in London â€” are you available?"
 
     from services.claude_outreach import build_email_body
     body = build_email_body(
