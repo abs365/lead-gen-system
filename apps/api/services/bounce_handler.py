@@ -1,8 +1,4 @@
-﻿"""
-Run this script from your api directory to write a clean bounce_handler.py
-Usage: python write_bounce_handler.py
-"""
-content = '''import os
+﻿import os
 import re
 import requests
 import logging
