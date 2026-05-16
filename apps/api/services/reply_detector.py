@@ -193,8 +193,9 @@ def detect_gmail_replies(db: Session) -> dict:
 
                 # AUTO-REPLY: Send prospect details if YES reply
                 is_yes = (
-                    body_lower.strip() in ["yes", "yes.", "yes!"] or
+                    body_lower.strip() in ["yes", "yes.", "yes!", "free", "free."] or
                     body_lower.startswith("yes") or
+                    body_lower.startswith("free") or
                     "interested" in body_lower or
                     "send details" in body_lower or
                     "send me" in body_lower or
@@ -220,9 +221,7 @@ def detect_gmail_replies(db: Session) -> dict:
                                 match_obj, prospect = match
                                 prospect_details = f"""Hi,
 
-Thanks for getting back to us!
-
-Here are the details for the commercial lead we identified:
+Welcome to your free trial — here is your first verified commercial lead:
 
 Business: {prospect.name}
 Type: {prospect.category or 'Commercial premises'}
