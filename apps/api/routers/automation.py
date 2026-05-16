@@ -90,7 +90,12 @@ def send_match_outreach():
         for match, demand, plumber in selected:
             if cycle_count >= MAX_PER_CYCLE:
                 break
-            if not plumber.email:
+            # Skip consumer ISP emails — high bounce/spam rate
+            CONSUMER_DOMAINS = [
+                "talktalk.net", "btinternet.com", "virginmedia.com",
+                "sky.com", "ntlworld.com", "btopenworld.com",
+            ]
+            if any(d in (plumber.email or "") for d in CONSUMER_DOMAINS):
                 skipped += 1
                 continue
             # Skip known bad domains
