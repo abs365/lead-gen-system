@@ -607,3 +607,9 @@ def collect_contracts_finder_endpoint(days_back: int = 2, db: Session = Depends(
     """Collect live UK public sector plumbing/maintenance tenders from Contracts Finder."""
     from services.contracts_finder import collect_contracts_finder
     return collect_contracts_finder(db, days_back=days_back)
+
+@router.get("/collect-checkatrade", dependencies=[Depends(require_api_key)])
+def collect_checkatrade_endpoint(trade: str = "plumber", db: Session = Depends(get_db)):
+    """Collect trade listings from Checkatrade — plumber, electrician, gas_engineer, hvac."""
+    from services.checkatrade import collect_checkatrade
+    return collect_checkatrade(db, trade=trade)
