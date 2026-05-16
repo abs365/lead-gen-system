@@ -276,9 +276,9 @@ def score_demand_endpoint(db: Session = Depends(get_db)):
 
 
 @router.get("/run-matching-engine")
-def run_matching_engine_endpoint(db: Session = Depends(get_db)):
+def run_matching_engine_endpoint(limit: int = 100, db: Session = Depends(get_db)):
     from services.matching_engine import run_matching_engine
-    result = run_matching_engine(db)
+    result = run_matching_engine(db, limit_plumbers=limit)
     return result
 
 @router.get("/enrich-demand")

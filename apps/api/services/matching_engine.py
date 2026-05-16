@@ -1,14 +1,14 @@
 from sqlalchemy.orm import Session
 from models import DemandProspect, Plumber, Match
 
-def run_matching_engine(db: Session):
+def run_matching_engine(db: Session, limit_plumbers: int = 100):
     prospects = db.query(DemandProspect).filter(
         DemandProspect.is_high_priority == 1
     ).all()
 
     plumbers = db.query(Plumber).filter(
         Plumber.email.isnot(None)
-    ).all()
+    ).limit(limit_plumbers).all()
 
     prospect_count = len(prospects)
     plumber_count = len(plumbers)
