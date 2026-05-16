@@ -36,15 +36,7 @@ BOUNCE_SUBJECT_PATTERNS = [
 ]
 
 # NDR body patterns that contain the failed recipient
-BOUNCE_EMAIL_PATTERNS = [
-    r"recipient address:\s*([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})",
-    r"failed recipient:\s*([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})",
-    r"original recipient:\s*([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})",
-    r"to:\s*([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})",
-    r"<([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})>",
-    r"([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})",
-]
-
+notepad "C:\Users\Admin\Workspace\projects\lead-gen-system\apps\api\services\bounce_handler.py"
 # Hard bounce error codes — permanent failures
 HARD_BOUNCE_CODES = [
     "550", "551", "552", "553", "554",
