@@ -75,27 +75,88 @@ def recalculate_scores(db: Session = Depends(get_db)):
         "updated": updated
     }
 
+
+# --------------------------------------------------------------------------- #
+# MATCHES — paginated with score filter
+# --------------------------------------------------------------------------- #
+
 @router.get("/matches")
-def get_matches(db: Session = Depends(get_db)):
+def get_matches(
+    page: int = 1,
+    per_page: int = 50,
+    min_score: int = 0,
+    search: str = "",
+    db: Session = Depends(get_db),
+):
     from models import Match, DemandProspect, Plumber
 
-    matches = db.query(Match, DemandProspect, Plumber)\
+    query = db.query(Match, DemandProspect, Plumber)\
         .join(DemandProspect, Match.demand_prospect_id == DemandProspect.id)\
-        .join(Plumber, Match.plumber_id == Plumber.id)\
+        .join(Plumber, Match.plumber_id == Plumber.id)
+
+    if min_score > 0:
+        query = query.filter(Match.match_score >= min_score)
+
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            (DemandProspect.name.ilike(search_term)) |
+            (Plumber.name.ilike(search_term))
+        )
+
+    total = query.count()
+
+    # Score distribution for stats cards
+    score_90_plus = query.filter(Match.match_score >= 90).count() if page == 1 else None
+    score_60_89 = query.filter(Match.match_score >= 60, Match.match_score < 90).count() if page == 1 else None
+
+    # Unique prospects in filtered set
+    unique_prospects = db.query(DemandProspect.id).join(
+        Match, Match.demand_prospect_id == DemandProspect.id
+    ).join(Plumber, Match.plumber_id == Plumber.id)
+    if min_score > 0:
+        unique_prospects = unique_prospects.filter(Match.match_score >= min_score)
+    if search:
+        unique_prospects = unique_prospects.filter(
+            (DemandProspect.name.ilike(search_term)) |
+            (Plumber.name.ilike(search_term))
+        )
+    unique_count = unique_prospects.distinct().count() if page == 1 else None
+
+    matches = query\
         .order_by(Match.match_score.desc())\
-        .limit(20)\
+        .offset((page - 1) * per_page)\
+        .limit(per_page)\
         .all()
 
     result = []
-
     for m, prospect, plumber in matches:
         result.append({
             "prospect_name": prospect.name,
             "plumber_name": plumber.name,
-            "match_score": m.match_score
+            "match_score": m.match_score,
         })
 
-    return result
+    response = {
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": (total + per_page - 1) // per_page,
+        "matches": result,
+    }
+
+    # Only include stats on first page to avoid extra queries
+    if page == 1:
+        response["score_90_plus"] = score_90_plus
+        response["score_60_89"] = score_60_89
+        response["unique_prospects"] = unique_count
+
+    return response
+
+
+# --------------------------------------------------------------------------- #
+# CLOSE DEAL
+# --------------------------------------------------------------------------- #
 
 @router.post("/close-deal/{lead_id}/{value}")
 def close_deal(lead_id: int, value: int, db: Session = Depends(get_db)):
@@ -114,6 +175,11 @@ def close_deal(lead_id: int, value: int, db: Session = Depends(get_db)):
         "lead_id": lead_id,
         "value": value
     }
+
+
+# --------------------------------------------------------------------------- #
+# CLEAN BAD LEADS
+# --------------------------------------------------------------------------- #
 
 @router.post("/clean-bad-leads")
 def clean_bad_leads(db: Session = Depends(get_db)):
@@ -144,6 +210,11 @@ def clean_bad_leads(db: Session = Depends(get_db)):
 
     return {"deleted": deleted}
 
+
+# --------------------------------------------------------------------------- #
+# DEMAND PROSPECTS
+# --------------------------------------------------------------------------- #
+
 @router.get("/demand-prospects")
 def get_demand_prospects(db: Session = Depends(get_db), limit: int = 500, source: str = None):
     from models import DemandProspect
@@ -168,6 +239,11 @@ def get_demand_prospects(db: Session = Depends(get_db), limit: int = 500, source
         }
         for p in prospects
     ]
+
+
+# --------------------------------------------------------------------------- #
+# PLUMBERS (public)
+# --------------------------------------------------------------------------- #
 
 @router.get("/plumbers")
 def get_plumbers_public(db: Session = Depends(get_db)):
