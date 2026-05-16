@@ -119,8 +119,9 @@ def detect_gmail_replies(db: Session) -> dict:
                 )
 
                 is_yes_reply = (
-                    body_lower.strip() in ["yes", "yes.", "yes!"] or
-                    body_lower.startswith("yes")
+                    body_lower.strip() in ["yes", "yes.", "yes!", "free", "free."] or
+                    body_lower.startswith("yes") or
+                    body_lower.startswith("free")
                 )
                 if is_stop and not is_yes_reply:
                     # Only process once per email address

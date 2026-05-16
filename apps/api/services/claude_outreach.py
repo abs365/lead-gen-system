@@ -105,7 +105,9 @@ We've identified a public sector tender in your area that may be a good fit for 
 
 The contract is for [brief description of work] in [area], {value_str} and {deadline_str}.
 
-If you'd like the full tender details including the contact name and how to apply, reply YES and I'll send them over straight away.
+We offer new plumbers 3 free verified commercial leads — no card, no commitment.
+
+Reply FREE and I'll send your first lead today. If you like what you see, we have plans from just £49/month for ongoing leads.
 
 If you'd prefer not to receive these emails, just reply UNSUBSCRIBE.
 
@@ -175,7 +177,9 @@ We help connect plumbing companies with commercial property leads in [city].
 
 We recently identified a [business type] in [area of city or postcode district only] that may need commercial plumbing support.
 
-If you'd like the full contact details including business name and address, reply YES and I'll send them over.
+We offer new plumbers 3 free verified commercial leads — no card, no commitment.
+
+Reply FREE and I'll send your first lead today. Plans from just £49/month after your trial.
 
 If you'd prefer not to receive these emails, just reply UNSUBSCRIBE.
 
@@ -248,7 +252,9 @@ We've identified a public sector tender in your area that may be a good fit for 
 
 The contract is for work in {city}, {value_str} and {deadline_str}.
 
-If you'd like the full tender details including the contact name and how to apply, reply YES and I'll send them over straight away.
+We offer new plumbers 3 free verified commercial leads — no card, no commitment.
+
+Reply FREE and I'll send your first tender details today. Plans from just £49/month after your trial.
 
 If you'd prefer not to receive these emails, just reply UNSUBSCRIBE.
 
@@ -270,7 +276,9 @@ We help connect plumbing companies with commercial property leads in {city}.
 
 We recently identified a {business_type} in {city} that may need commercial plumbing support.
 
-If you'd like the full contact details including business name and address, reply YES and I'll send them over.
+We offer new plumbers 3 free verified commercial leads — no card, no commitment.
+
+Reply FREE and I'll send your first lead today. Plans from just £49/month after your trial.
 
 If you'd prefer not to receive these emails, just reply UNSUBSCRIBE.
 
