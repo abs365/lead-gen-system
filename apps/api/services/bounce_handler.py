@@ -46,4 +46,9 @@ BOUNCE_EMAIL_PATTERNS = [
 
 HARD_BOUNCE_CODES = [
     "550", "551", "552", "553", "554",
-    "5.1.0", "5.1.1", "
+    "5.1.0", "5.1.1", "5.1.2", "5.1.3", "5.1.6", "5.1.10",
+    "5.7.1", "user unknown", "no such user", "mailbox not found",
+    "does not exist", "invalid address", "address rejected",
+    "relay access denied", "recipient not found",
+    "recipientnotfound", "addressnotfound", "mailbox unknown",
+]
