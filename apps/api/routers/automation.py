@@ -111,7 +111,7 @@ def send_match_outreach():
                 continue
 
             try:
-                subject = f"Commercial work in {demand.city or 'London'} â€” are you available?"
+                subject = f"Commercial plumbing leads in {demand.city or 'London'} - free trial"
 
                 from services.claude_outreach import build_email_body
                 body = build_email_body(
@@ -320,7 +320,7 @@ def follow_up_hot_leads():
 
 @router.get("/send-test-email")
 def send_test_email():
-    subject = "Commercial work in London â€” are you available?"
+    subject = "Commercial plumbing leads in London - free trial"
 
     from services.claude_outreach import build_email_body
     body = build_email_body(
