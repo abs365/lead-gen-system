@@ -345,5 +345,5 @@ def send_test_email():
 @router.post("/detect-bounces")
 def detect_bounces_endpoint(db: Session = Depends(get_db)):
     """Scan inbox for NDR bounce emails and blacklist bad plumber addresses."""
-    from services.bounce_handler import detect_bounces
+    from services.bounce_handler_v2 import detect_bounces
     return detect_bounces(db)
