@@ -199,7 +199,6 @@ def enrich_demand_prospects(db: Session, limit: int = 25) -> dict:
             existing = db.query(OutreachLog).filter(
                 OutreachLog.email == email
             ).first()
-
             if not existing:
                 outreach = OutreachLog(
                     email=email,
@@ -210,7 +209,6 @@ def enrich_demand_prospects(db: Session, limit: int = 25) -> dict:
                     close_probability=30,
                     sent_at=None,
                 )
-
                 db.add(outreach)
                 outreach_created += 1
         else:

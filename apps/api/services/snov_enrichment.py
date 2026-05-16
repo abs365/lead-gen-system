@@ -213,22 +213,6 @@ def enrich_demand_with_snov(db: Session, limit: int = 25) -> dict:
             prospect.status = "enriched"
             enriched += 1
 
-            existing = db.query(OutreachLog).filter(
-                OutreachLog.email == email
-            ).first()
-
-            if not existing:
-                db.add(OutreachLog(
-                    email=email,
-                    subject=f"Commercial plumbing opportunity - {prospect.name}",
-                    status="new",
-                    lead_score=25,
-                    estimated_value=_estimate_value(prospect),
-                    close_probability=35,
-                    sent_at=None,
-                ))
-                outreach_created += 1
-
             logger.info(f"Enriched: {prospect.name} -> {email}")
         else:
             prospect.status = "needs_contact"
