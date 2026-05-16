@@ -145,3 +145,4 @@ def detect_bounces(db: Session) -> dict:
     db.commit()
     return {"success": True, "scanned": scanned, "bounces_found": bounces_found, "emails_blacklisted": emails_blacklisted}
 ENDOFFILE
+# updated
