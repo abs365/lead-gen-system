@@ -613,3 +613,50 @@ def collect_checkatrade_endpoint(trade: str = "plumber", db: Session = Depends(g
     """Collect trade listings from Checkatrade — plumber, electrician, gas_engineer, hvac."""
     from services.checkatrade import collect_checkatrade
     return collect_checkatrade(db, trade=trade)
+
+from fastapi import UploadFile, File
+
+@router.post("/import-plumber-emails", dependencies=[Depends(require_api_key)])
+async def import_plumber_emails(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """Import plumber emails from a text file — one email per line."""
+    import re
+    from datetime import datetime
+
+    content = await file.read()
+    lines = content.decode("utf-8", errors="ignore").splitlines()
+
+    junk = ["4@gmail", "uk@gmail", "sandler@gmail"]
+    emails = [
+        l.strip() for l in lines
+        if "@" in l and "." in l.split("@")[1]
+        and len(l.strip()) > 5
+        and not any(j in l for j in junk)
+    ]
+
+    inserted = 0
+    skipped = 0
+
+    for email in emails:
+        email = email.strip().lower()
+        existing = db.query(Plumber).filter(Plumber.email == email).first()
+        if existing:
+            skipped += 1
+            continue
+
+        local = email.split("@")[0]
+        name = " ".join(w.capitalize() for w in re.sub(r"[._\-\d]", " ", local).split() if len(w) > 1) or local
+
+        db.add(Plumber(
+            name=name[:100],
+            email=email,
+            city="London",
+            source="manual_import",
+            category="plumber",
+            is_commercial=1,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        ))
+        inserted += 1
+
+    db.commit()
+    return {"success": True, "inserted": inserted, "skipped": skipped, "total": len(emails)}
